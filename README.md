@@ -1,52 +1,90 @@
-# Waygate MCP - Enterprise-Grade MCP Server Framework
+# Waygate MCP - Secure Containerized MCP Server Framework 🐳🔒
 
 **Version:** 2.0.0
-**Status:** In Development
+**Status:** Production-Ready
 **Successor to:** NEXUS MCP
+**Architecture:** Security-Hardened Docker Containers
 
 ## 🚀 Overview
 
-Waygate MCP is an enterprise-grade Model Context Protocol (MCP) server framework designed to provide production-ready MCP implementations with comprehensive diagnostics, plugin architecture, and monitoring capabilities.
+Waygate MCP is an enterprise-grade Model Context Protocol (MCP) server framework built with **security-first containerization**. Unlike traditional virtual environment deployments, Waygate uses Docker containers for superior isolation, security, and reproducibility.
+
+## 🔐 Why Containers > Virtual Environments
+
+| Security Aspect | Virtual Environment | Container | Advantage |
+|-----------------|-------------------|-----------|-----------|
+| **Process Isolation** | ❌ Shared with host | ✅ Isolated namespace | Prevents interference |
+| **Network Isolation** | ❌ Uses host network | ✅ Private network | Controls traffic |
+| **File System** | ❌ Full host access | ✅ Isolated filesystem | Limits breach impact |
+| **Resource Limits** | ❌ No limits | ✅ cgroups limits | Prevents DoS |
+| **Privilege Escalation** | ⚠️ Easier | ✅ Non-root user | Reduced attack surface |
 
 ## ✨ Key Features
 
+- **Security-Hardened Containers**: Non-root execution, read-only filesystem, dropped capabilities
 - **Production-Ready**: Built with FastAPI for high performance
 - **Diagnostic Excellence**: Comprehensive troubleshooting tools and playbooks
 - **Plugin Architecture**: Extensible through modular plugins
-- **Enterprise Features**: Security, scalability, monitoring built-in
-- **Backward Compatible**: Migration path from NEXUS MCP
+- **Enterprise Features**: SSL/TLS, rate limiting, monitoring built-in
+- **One-Line Setup**: Automated secure deployment with `quickstart.sh`
 
-## 📋 Quick Start
+## 🚀 Quick Start (One Command!)
+
+```bash
+# Secure automated setup
+curl -sSL https://raw.githubusercontent.com/jeremylongshore/waygate-mcp/main/quickstart.sh | bash
+```
+
+Or clone and run locally:
+
+```bash
+git clone https://github.com/jeremylongshore/waygate-mcp.git
+cd waygate-mcp
+chmod +x quickstart.sh
+./quickstart.sh
+```
+
+## 📋 Manual Installation
 
 ### Prerequisites
 
-- Python 3.9+
+- Docker 20.10+
+- Docker Compose 2.0+
 - Git
-- 1GB+ disk space
+- 2GB+ disk space
 
-### Installation
+### Step-by-Step Setup
 
 ```bash
-# Clone the repository
-cd /home/jeremy/projects/waygate-mcp
+# 1. Clone the repository
+git clone https://github.com/jeremylongshore/waygate-mcp.git
+cd waygate-mcp
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# 2. Generate secure configuration
+export WAYGATE_SECRET_KEY=$(openssl rand -base64 32)
+export WAYGATE_API_KEY=$(uuidgen)
 
-# Install dependencies
-pip install -r requirements.txt
+# 3. Create environment file
+cat > .env << EOF
+WAYGATE_ENV=production
+WAYGATE_SECRET_KEY=${WAYGATE_SECRET_KEY}
+WAYGATE_API_KEY=${WAYGATE_API_KEY}
+EOF
 
-# Run the server
-python src/waygate_mcp.py
+# 4. Build and start containers
+docker-compose build --pull --no-cache
+docker-compose up -d
+
+# 5. Verify health
+curl http://localhost:8000/health
 ```
 
 ### Access Points
 
 - **API**: http://localhost:8000
-- **Documentation**: http://localhost:8000/docs (development mode)
 - **Health Check**: http://localhost:8000/health
 - **Metrics**: http://localhost:8000/metrics
+- **Documentation**: http://localhost:8000/docs (development mode)
 
 ## 📁 Project Structure
 
@@ -64,16 +102,57 @@ waygate-mcp/
 └── configs/             # Configuration files
 ```
 
-## 🔧 Configuration
-
-Configuration via environment variables or `.env` file:
+## 🐳 Development Mode
 
 ```bash
-WAYGATE_MODE=local_vm
-WAYGATE_ENV=development
-WAYGATE_LOG_LEVEL=INFO
-WAYGATE_PORT=8000
+# Run in development mode with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# Access container shell for debugging
+docker-compose exec waygate /bin/bash
+
+# View logs
+docker-compose logs -f waygate
 ```
+
+## 🔧 Configuration
+
+Configuration via environment variables in `.env` file:
+
+```bash
+# Environment
+WAYGATE_ENV=production          # production/development
+WAYGATE_LOG_LEVEL=INFO          # DEBUG/INFO/WARNING/ERROR
+
+# Security (CHANGE THESE!)
+WAYGATE_SECRET_KEY=<generated>  # Generate with: openssl rand -base64 32
+WAYGATE_API_KEY=<generated>     # Generate with: uuidgen
+
+# Network
+WAYGATE_CORS_ORIGINS=["https://yourdomain.com"]
+WAYGATE_RATE_LIMIT=100          # Requests per minute
+
+# Resources
+WAYGATE_MAX_REQUEST_SIZE=10485760  # 10MB
+```
+
+## 🛡️ Security Features
+
+### Container Security
+- ✅ **Non-root user**: Runs as UID 1000 (waygate user)
+- ✅ **Read-only filesystem**: Writable volumes only where needed
+- ✅ **Dropped capabilities**: All capabilities dropped except NET_BIND_SERVICE
+- ✅ **No new privileges**: Prevents privilege escalation
+- ✅ **Resource limits**: CPU (2 cores) and Memory (1GB) limits
+- ✅ **Network isolation**: Custom Docker network with defined subnet
+- ✅ **Secrets management**: Environment-based with .env file
+
+### Application Security
+- ✅ **API key authentication**: Required for API access
+- ✅ **Rate limiting**: Configurable per-endpoint limits
+- ✅ **CORS protection**: Configurable allowed origins
+- ✅ **Input validation**: Pydantic models for all inputs
+- ✅ **SSL/TLS ready**: Nginx configuration included
 
 ## 📊 API Endpoints
 

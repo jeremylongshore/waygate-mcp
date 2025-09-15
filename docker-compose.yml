@@ -1,0 +1,152 @@
+# docker-compose.yml
+# Secure Docker Compose configuration for Waygate MCP
+version: '3.8'
+
+services:
+  waygate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD)}
+        VERSION: ${VERSION:-2.0.0}
+
+    image: waygate-mcp:latest
+    container_name: waygate-mcp
+
+    # Security: Resource limits to prevent DoS
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Security: Read-only root filesystem
+    read_only: true
+
+    # Security: Explicitly define writable volumes
+    volumes:
+      - waygate-logs:/app/logs:rw
+      - waygate-data:/app/data:rw
+      - waygate-tmp:/app/tmp:rw
+      - waygate-cache:/app/.waygate:rw
+
+    # Security: Use tmpfs for temporary files
+    tmpfs:
+      - /tmp:size=100M,mode=1777
+      - /run:size=100M,mode=755
+
+    # Security: Environment variables (use secrets in production)
+    environment:
+      - WAYGATE_MODE=container
+      - WAYGATE_ENV=${WAYGATE_ENV:-production}
+      - WAYGATE_LOG_LEVEL=${WAYGATE_LOG_LEVEL:-INFO}
+      - WAYGATE_HOST=0.0.0.0
+      - WAYGATE_PORT=8000
+      - WAYGATE_WORKERS=4
+      # Security: Generate strong secret key
+      - WAYGATE_SECRET_KEY=${WAYGATE_SECRET_KEY:-changeme}
+      - WAYGATE_CORS_ORIGINS=${WAYGATE_CORS_ORIGINS:-["https://localhost"]}
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+
+    # Security: Network isolation
+    networks:
+      - waygate-network
+
+    ports:
+      - "127.0.0.1:8000:8000"  # Only bind to localhost
+
+    # Security: Security options
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+      - seccomp:default
+
+    # Security: Capabilities (drop all, add only needed)
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # Only if binding to port < 1024
+
+    # Security: User namespace remapping
+    userns_mode: "host"
+
+    # Security: PID limits
+    pids_limit: 100
+
+    # Security: Disable inter-process communication
+    ipc: none
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=waygate-mcp"
+
+  # Optional: Nginx reverse proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: waygate-nginx
+    profiles: ["ssl"]  # Only start when ssl profile is activated
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+
+    ports:
+      - "443:443"
+      - "80:80"
+
+    networks:
+      - waygate-network
+
+    depends_on:
+      - waygate
+
+    restart: unless-stopped
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+
+volumes:
+  waygate-logs:
+    driver: local
+  waygate-data:
+    driver: local
+  waygate-tmp:
+    driver: local
+  waygate-cache:
+    driver: local
+  nginx-cache:
+    driver: local
+
+networks:
+  waygate-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

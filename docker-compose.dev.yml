@@ -1,0 +1,54 @@
+# docker-compose.dev.yml
+# Development overrides with relaxed security for debugging
+version: '3.8'
+
+services:
+  waygate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Stop at builder stage for development
+
+    environment:
+      - WAYGATE_ENV=development
+      - WAYGATE_LOG_LEVEL=DEBUG
+      - WAYGATE_RELOAD=true
+      - WAYGATE_SECRET_KEY=development-secret-key-not-for-production
+
+    # Development: Mount source code for hot reload
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./configs:/app/configs:ro
+      - waygate-logs:/app/logs:rw
+      - waygate-data:/app/data:rw
+
+    # Development: Expose to all interfaces
+    ports:
+      - "8000:8000"
+
+    # Development: Disable read-only filesystem
+    read_only: false
+
+    # Development: Allow more resources
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+
+    # Development: Enable stdin and tty for debugging
+    stdin_open: true
+    tty: true
+
+    # Development: Less restrictive security
+    security_opt:
+      - apparmor:unconfined
+
+    # Development: Add debugging capabilities
+    cap_add:
+      - SYS_PTRACE  # For debugging
+
+    # Development: Command override for debugging
+    # Uncomment to start with shell instead of app
+    # command: /bin/bash
