@@ -1,26 +1,31 @@
 #!/usr/bin/env python3
 """
-Waygate MCP Server - Enterprise-grade MCP implementation
-Successor to NEXUS MCP with enhanced diagnostics and plugin architecture
+Waygate MCP Server - Foundational MCP implementation
+Successor to NEXUS MCP with stdio-based communication
 """
 
+import os
+import sys
+import json
 import asyncio
 import logging
-import signal
-import sys
-from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pathlib import Path
 
-import click
-import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, Security, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
-from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
-import structlog
+# Configure logging
+log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler('/tmp/waygate_mcp.log'), logging.StreamHandler()]
+)
+logger = logging.getLogger("waygate_mcp")
+
+# Environment configuration
+WAYGATE_MODE = os.getenv("WAYGATE_MODE", "development")
+WAYGATE_PROJECTS_DIR = os.getenv("WAYGATE_PROJECTS_DIR", "/home/jeremy/projects")
+WAYGATE_VERSION = "2.0.0"
 
 # Configure structured logging
 structlog.configure(

@@ -1,9 +1,9 @@
 # Dockerfile
 # Security-hardened multi-stage build for Waygate MCP
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 # Security: Pin specific versions for reproducibility
-ARG PYTHON_VERSION=3.11.7
+ARG PYTHON_VERSION=3.12.1
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=2.0.0
@@ -43,7 +43,7 @@ RUN pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
 #
 # Production stage - Minimal attack surface
 #
-FROM python:3.11-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # Security: Install security updates immediately
 RUN apt-get update && \
@@ -79,13 +79,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
     rm -rf /tmp/wheels /root/.cache/pip
 
 # Copy application code with proper ownership
+COPY --chown=waygate:waygate ./waygate_mcp.py /app/waygate_mcp.py
 COPY --chown=waygate:waygate ./src /app/src
 COPY --chown=waygate:waygate ./configs /app/configs
 COPY --chown=waygate:waygate ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod 550 /app/docker-entrypoint.sh
 
 # Security: Drop all capabilities and add only what's needed
-RUN setcap -r /usr/local/bin/python3.11 || true
+RUN setcap -r /usr/local/bin/python3.12 || true
 
 # Security: Set security options
 USER waygate
