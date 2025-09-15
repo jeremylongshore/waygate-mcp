@@ -48,6 +48,8 @@ services:
       - WAYGATE_HOST=0.0.0.0
       - WAYGATE_PORT=8000
       - WAYGATE_WORKERS=4
+      # Database: Turso connection (user must provide)
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL environment variable is required - Create your Turso database first}
       # Security: Generate strong secret key
       - WAYGATE_SECRET_KEY=${WAYGATE_SECRET_KEY:-changeme}
       - WAYGATE_CORS_ORIGINS=${WAYGATE_CORS_ORIGINS:-["https://localhost"]}
