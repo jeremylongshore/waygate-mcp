@@ -1,0 +1,265 @@
+# docker-compose.proxy.yml
+# Enhanced Docker Compose configuration for Waygate MCP as Security Proxy
+# Routes all external network access through Waygate for auditing and security
+version: '3.8'
+
+services:
+  # Waygate MCP as Security Proxy Gateway
+  waygate-proxy:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.proxy
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD)}
+        VERSION: ${VERSION:-2.0.0}
+
+    image: waygate-mcp-proxy:latest
+    container_name: waygate-proxy
+    hostname: waygate-proxy
+
+    # Security: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+    # Security: Read-only root filesystem
+    read_only: true
+
+    # Security: Explicitly define writable volumes
+    volumes:
+      - waygate-proxy-logs:/app/logs:rw
+      - waygate-proxy-data:/app/data:rw
+      - waygate-proxy-tmp:/app/tmp:rw
+      - waygate-proxy-cache:/app/.waygate:rw
+      - waygate-proxy-certs:/app/certs:ro
+      - ./proxy/egress-rules.json:/app/config/egress-rules.json:ro
+      - ./proxy/proxy-config.yml:/app/config/proxy-config.yml:ro
+
+    # Security: Use tmpfs for temporary files
+    tmpfs:
+      - /tmp:size=200M,mode=1777
+      - /run:size=100M,mode=755
+
+    # Proxy Gateway Environment
+    environment:
+      - WAYGATE_MODE=proxy_gateway
+      - WAYGATE_ENV=${WAYGATE_ENV:-production}
+      - WAYGATE_LOG_LEVEL=${WAYGATE_LOG_LEVEL:-INFO}
+      - WAYGATE_HOST=0.0.0.0
+      - WAYGATE_PORT=8000
+      - WAYGATE_PROXY_PORT=8080
+      - WAYGATE_WORKERS=8
+
+      # Database
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL environment variable is required}
+      - WAYGATE_SECRET_KEY=${WAYGATE_SECRET_KEY:-changeme}
+
+      # Proxy Configuration
+      - PROXY_MODE=enabled
+      - PROXY_LOG_ALL_REQUESTS=true
+      - PROXY_BLOCK_UNAUTHORIZED=true
+      - PROXY_RATE_LIMIT_ENABLED=true
+      - PROXY_MAX_REQUESTS_PER_MINUTE=100
+      - PROXY_ALLOWED_DOMAINS_FILE=/app/config/egress-rules.json
+      - PROXY_AUDIT_LOG_RETENTION_DAYS=90
+
+      # Security Features
+      - SECURITY_REQUEST_VALIDATION=strict
+      - SECURITY_TLS_VERIFY=true
+      - SECURITY_CONTENT_INSPECTION=enabled
+      - SECURITY_MALWARE_SCAN=enabled
+      - SECURITY_DLP_SCAN=enabled
+
+      # MCP Integration (all requests routed through proxy)
+      - MCP_PROXY_MODE=enabled
+      - MCP_SERVERS_ENABLED=${MCP_SERVERS_ENABLED:-firebase,bigquery,github,slack}
+      - MCP_AUTO_INITIALIZE=true
+
+      # External Service Credentials (proxy will manage these securely)
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_REGION=${FIREBASE_REGION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_WORKSPACE=${SLACK_WORKSPACE}
+
+    # Proxy Gateway Network Configuration
+    networks:
+      waygate-dmz:
+        ipv4_address: 172.29.1.10
+      waygate-internal:
+        ipv4_address: 172.30.1.10
+
+    ports:
+      - "127.0.0.1:8000:8000"  # Management API
+      - "127.0.0.1:8080:8080"  # Proxy Gateway
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:docker-default
+      - seccomp:/app/config/seccomp-proxy.json
+
+    # Capabilities (minimal for proxy operations)
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETUID
+      - SETGID
+
+    sysctls:
+      # Network security
+      - net.ipv4.ip_forward=0
+      - net.ipv4.conf.all.send_redirects=0
+      - net.ipv4.conf.all.accept_redirects=0
+      - net.ipv4.conf.all.accept_source_route=0
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health", "&&", "curl", "-f", "http://localhost:8080/proxy/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=waygate-proxy"
+
+  # Egress Firewall Container (iptables/netfilter based)
+  egress-firewall:
+    image: alpine:latest
+    container_name: waygate-egress-firewall
+    network_mode: "container:waygate-proxy"
+    privileged: true
+
+    volumes:
+      - ./proxy/firewall-rules.sh:/scripts/firewall-rules.sh:ro
+      - ./proxy/egress-domains.txt:/config/egress-domains.txt:ro
+
+    command: >
+      sh -c "
+        apk add --no-cache iptables &&
+        chmod +x /scripts/firewall-rules.sh &&
+        /scripts/firewall-rules.sh &&
+        tail -f /dev/null
+      "
+
+    depends_on:
+      - waygate-proxy
+
+    restart: unless-stopped
+
+  # Traffic Monitor and Analytics
+  traffic-monitor:
+    image: nginx:alpine
+    container_name: waygate-traffic-monitor
+
+    volumes:
+      - waygate-proxy-logs:/var/log/waygate:ro
+      - ./monitoring/traffic-analyzer.conf:/etc/nginx/conf.d/default.conf:ro
+
+    networks:
+      - waygate-internal
+
+    ports:
+      - "127.0.0.1:9090:80"
+
+    depends_on:
+      - waygate-proxy
+
+    restart: unless-stopped
+
+  # Security Log Aggregator
+  log-aggregator:
+    image: fluent/fluent-bit:latest
+    container_name: waygate-log-aggregator
+
+    volumes:
+      - waygate-proxy-logs:/var/log/waygate:ro
+      - ./logging/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./logging/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+
+    networks:
+      - waygate-internal
+
+    environment:
+      - FLUENT_ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST:-elasticsearch}
+      - FLUENT_ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT:-9200}
+
+    depends_on:
+      - waygate-proxy
+
+    restart: unless-stopped
+
+  # Network Policy Enforcer (using OPA)
+  policy-enforcer:
+    image: openpolicyagent/opa:latest
+    container_name: waygate-policy-enforcer
+
+    volumes:
+      - ./policies:/policies:ro
+
+    networks:
+      - waygate-internal
+
+    command: >
+      run --server
+      --addr 0.0.0.0:8181
+      --config-file /policies/config.yaml
+      /policies
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8181/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    restart: unless-stopped
+
+volumes:
+  waygate-proxy-logs:
+    driver: local
+  waygate-proxy-data:
+    driver: local
+  waygate-proxy-tmp:
+    driver: local
+  waygate-proxy-cache:
+    driver: local
+  waygate-proxy-certs:
+    driver: local
+
+networks:
+  # DMZ network for external-facing services
+  waygate-dmz:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: waygate-dmz
+
+  # Internal network for inter-service communication
+  waygate-internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: waygate-internal
+    internal: true  # No external access

@@ -1,0 +1,261 @@
+# alert_rules.yml
+# Prometheus alerting rules for Waygate MCP Proxy security monitoring
+
+groups:
+  - name: waygate_proxy_security
+    interval: 30s
+    rules:
+      # High-priority security alerts
+      - alert: SecurityViolationHigh
+        expr: increase(waygate_proxy_security_violations_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "High rate of security violations detected"
+          description: "{{ $value }} security violations in the last 5 minutes on Waygate Proxy"
+
+      - alert: SuspiciousTrafficPattern
+        expr: rate(waygate_proxy_blocked_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Suspicious traffic pattern detected"
+          description: "High rate of blocked requests: {{ $value }} requests/sec"
+
+      - alert: DLPViolation
+        expr: increase(waygate_proxy_dlp_violations_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: dlp
+        annotations:
+          summary: "Data Loss Prevention violation detected"
+          description: "DLP policy violation detected in proxy traffic"
+
+      - alert: MalwareDetected
+        expr: increase(waygate_proxy_malware_detected_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: malware
+        annotations:
+          summary: "Malware detected in proxy traffic"
+          description: "Malware detection triggered in Waygate Proxy"
+
+  - name: waygate_proxy_performance
+    interval: 30s
+    rules:
+      # Performance alerts
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(waygate_proxy_request_duration_seconds_bucket[5m])) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High proxy latency detected"
+          description: "95th percentile latency is {{ $value }}s"
+
+      - alert: HighErrorRate
+        expr: rate(waygate_proxy_requests_total{status=~"5.."}[5m]) / rate(waygate_proxy_requests_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          component: performance
+        annotations:
+          summary: "High error rate in proxy"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: ProxyDown
+        expr: up{job="waygate-proxy"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "Waygate Proxy is down"
+          description: "Waygate Proxy has been down for more than 1 minute"
+
+      - alert: HighConcurrentConnections
+        expr: waygate_proxy_active_connections > 800
+        for: 2m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High number of concurrent connections"
+          description: "{{ $value }} active connections to proxy"
+
+  - name: waygate_proxy_rate_limiting
+    interval: 15s
+    rules:
+      # Rate limiting alerts
+      - alert: RateLimitViolations
+        expr: increase(waygate_proxy_rate_limit_violations_total[1m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+          component: rate_limiting
+        annotations:
+          summary: "High rate of rate limit violations"
+          description: "{{ $value }} rate limit violations in the last minute"
+
+      - alert: RateLimitBypassAttempt
+        expr: increase(waygate_proxy_rate_limit_bypass_attempts_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Rate limit bypass attempt detected"
+          description: "Attempt to bypass rate limiting detected"
+
+  - name: waygate_proxy_mcp_integration
+    interval: 30s
+    rules:
+      # MCP integration alerts
+      - alert: MCPServerDown
+        expr: waygate_mcp_server_status{status!="active"} == 1
+        for: 1m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP server is not active"
+          description: "MCP server {{ $labels.server_name }} is in {{ $labels.status }} state"
+
+      - alert: MCPToolExecutionFailures
+        expr: increase(waygate_mcp_tool_execution_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "High MCP tool execution failure rate"
+          description: "{{ $value }} MCP tool execution failures in 5 minutes"
+
+      - alert: MCPCredentialFailure
+        expr: increase(waygate_mcp_credential_failures_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: mcp
+        annotations:
+          summary: "MCP credential failure detected"
+          description: "Authentication failure for MCP server {{ $labels.server_name }}"
+
+  - name: waygate_proxy_infrastructure
+    interval: 60s
+    rules:
+      # Infrastructure alerts
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85%: {{ $value | humanizePercentage }}"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80%: {{ $value }}%"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_free_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is above 85%: {{ $value | humanizePercentage }}"
+
+      - alert: ContainerRestart
+        expr: increase(container_restart_count[5m]) > 0
+        for: 0s
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Container restart detected"
+          description: "Container {{ $labels.container_name }} has restarted"
+
+  - name: waygate_proxy_network
+    interval: 30s
+    rules:
+      # Network security alerts
+      - alert: SuspiciousNetworkActivity
+        expr: rate(waygate_firewall_blocked_packets_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High rate of blocked network packets"
+          description: "{{ $value }} packets/sec being blocked by firewall"
+
+      - alert: DNSAnomalies
+        expr: increase(waygate_proxy_dns_resolution_failures_total[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High DNS resolution failure rate"
+          description: "{{ $value }} DNS resolution failures in 5 minutes"
+
+      - alert: EgressPolicyViolation
+        expr: increase(waygate_proxy_egress_policy_violations_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: network
+        annotations:
+          summary: "Egress policy violation detected"
+          description: "Unauthorized egress attempt blocked: {{ $labels.destination }}"
+
+  - name: waygate_proxy_compliance
+    interval: 300s
+    rules:
+      # Compliance and audit alerts
+      - alert: AuditLogGap
+        expr: time() - waygate_proxy_last_audit_log_timestamp > 300
+        for: 1m
+        labels:
+          severity: critical
+          component: compliance
+        annotations:
+          summary: "Audit log gap detected"
+          description: "No audit logs received for more than 5 minutes"
+
+      - alert: ConfigurationDrift
+        expr: waygate_proxy_config_hash != waygate_proxy_expected_config_hash
+        for: 1m
+        labels:
+          severity: warning
+          component: compliance
+        annotations:
+          summary: "Configuration drift detected"
+          description: "Proxy configuration has changed from expected baseline"
+
+      - alert: CertificateExpiringSoon
+        expr: (waygate_proxy_certificate_expiry_timestamp - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate {{ $labels.certificate_name }} expires in {{ $value }} days"

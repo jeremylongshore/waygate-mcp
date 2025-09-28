@@ -9,9 +9,24 @@ import sys
 import json
 import asyncio
 import logging
+import signal
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
+
+# FastAPI and related imports
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
+import uvicorn
+import click
+import structlog
+
+# Waygate MCP modules
+from database import init_database, db_manager
+from mcp_integration import initialize_mcp_integration, get_mcp_manager
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
@@ -295,6 +310,111 @@ class WaygateServer:
             # TODO: Implement plugin reloading
             return {"status": "plugins_reloaded", "count": 0}
 
+        # MCP Integration Endpoints
+        @app.get("/mcp/servers", tags=["MCP"])
+        async def list_mcp_servers():
+            """List all integrated MCP servers"""
+            try:
+                mcp_manager = await get_mcp_manager()
+                status = await mcp_manager.get_mcp_status()
+                return status
+            except Exception as e:
+                self.logger.error("mcp_servers_list_failed", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.get("/mcp/tools", tags=["MCP"])
+        async def list_mcp_tools():
+            """List all tools from all MCP servers"""
+            try:
+                mcp_manager = await get_mcp_manager()
+                tools = await mcp_manager.get_all_mcp_tools()
+
+                # Flatten tools for easier access
+                all_tools = []
+                for server_name, server_tools in tools.items():
+                    for tool in server_tools:
+                        tool["mcp_server"] = server_name
+                        all_tools.append(tool)
+
+                return {
+                    "total_tools": len(all_tools),
+                    "tools_by_server": tools,
+                    "all_tools": all_tools
+                }
+            except Exception as e:
+                self.logger.error("mcp_tools_list_failed", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.post("/mcp/execute", tags=["MCP"])
+        async def execute_mcp_tool(request: dict):
+            """Execute a tool on a specific MCP server"""
+            try:
+                server_name = request.get("server_name")
+                tool_name = request.get("tool_name")
+                parameters = request.get("parameters", {})
+
+                if not server_name or not tool_name:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="server_name and tool_name are required"
+                    )
+
+                mcp_manager = await get_mcp_manager()
+                result = await mcp_manager.execute_mcp_tool(
+                    server_name, tool_name, parameters
+                )
+
+                return result
+
+            except Exception as e:
+                self.logger.error("mcp_tool_execution_failed", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.post("/mcp/servers/{server_name}/reload", tags=["MCP"])
+        async def reload_mcp_server(server_name: str):
+            """Reload a specific MCP server"""
+            try:
+                mcp_manager = await get_mcp_manager()
+                success = await mcp_manager.reload_mcp_server(server_name)
+
+                if success:
+                    return {"status": "success", "message": f"MCP server {server_name} reloaded"}
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Failed to reload MCP server: {server_name}"
+                    )
+            except Exception as e:
+                self.logger.error("mcp_server_reload_failed", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.get("/mcp/servers/{server_name}/tools", tags=["MCP"])
+        async def get_mcp_server_tools(server_name: str):
+            """Get tools for a specific MCP server"""
+            try:
+                mcp_manager = await get_mcp_manager()
+
+                if server_name not in mcp_manager.mcp_servers:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"MCP server not found: {server_name}"
+                    )
+
+                server_info = mcp_manager.mcp_servers[server_name]
+                plugin = server_info["plugin"]
+                tools = await plugin.get_tools()
+
+                return {
+                    "server_name": server_name,
+                    "server_type": server_info["config"]["server_type"],
+                    "tool_count": len(tools),
+                    "tools": tools
+                }
+
+            except Exception as e:
+                self.logger.error("mcp_server_tools_failed", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+
         @app.get("/diagnostics/connection", tags=["Diagnostics"])
         async def connection_diagnostics():
             """Run connection diagnostics"""
@@ -333,6 +453,12 @@ class WaygateServer:
             port=self.settings.port,
             environment=self.settings.env
         )
+
+        # Initialize database
+        await init_database()
+
+        # Initialize MCP integration system
+        await initialize_mcp_integration()
 
         config = uvicorn.Config(
             app=self.app,

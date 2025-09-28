@@ -1,0 +1,120 @@
+# prometheus.yml
+# Prometheus configuration for Waygate MCP Proxy monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'waygate-mcp-proxy'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Waygate MCP Proxy Gateway
+  - job_name: 'waygate-proxy'
+    static_configs:
+      - targets: ['waygate-proxy:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    scheme: http
+
+    # Additional labels
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: waygate-proxy:9090
+
+    # Metric filters
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'waygate_.*'
+        action: keep
+
+  # Waygate Management API
+  - job_name: 'waygate-management'
+    static_configs:
+      - targets: ['waygate-proxy:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # System metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['waygate-proxy:9100']
+    scrape_interval: 30s
+
+  # Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['waygate-proxy:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Security logs monitoring
+  - job_name: 'security-logs'
+    static_configs:
+      - targets: ['log-aggregator:2020']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  # Traffic analyzer
+  - job_name: 'traffic-analyzer'
+    static_configs:
+      - targets: ['traffic-monitor:9090']
+    metrics_path: '/nginx_status'
+    scrape_interval: 15s
+
+  # Policy enforcer (OPA)
+  - job_name: 'policy-enforcer'
+    static_configs:
+      - targets: ['policy-enforcer:8181']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # External health checks
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://waygate-proxy:8000/health
+        - http://waygate-proxy:8080/proxy/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+# Remote write configuration (for long-term storage)
+remote_write:
+  - url: "http://victoria-metrics:8428/api/v1/write"
+    queue_config:
+      max_samples_per_send: 10000
+      batch_send_deadline: 5s
+      max_shards: 20
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 7d
+    retention.size: 2GB
+    wal-compression: true

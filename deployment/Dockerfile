@@ -36,7 +36,7 @@ USER builder
 WORKDIR /build
 
 # Copy and install dependencies as non-root
-COPY --chown=builder:builder requirements-docker.txt ./
+COPY --chown=builder:builder ./source/requirements-docker.txt ./
 RUN pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
     pip wheel --no-cache-dir --wheel-dir /build/wheels -r requirements-docker.txt
 
@@ -79,10 +79,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
     rm -rf /tmp/wheels /root/.cache/pip
 
 # Copy application code with proper ownership
-COPY --chown=waygate:waygate ./waygate_mcp.py /app/waygate_mcp.py
-COPY --chown=waygate:waygate ./src /app/src
-COPY --chown=waygate:waygate ./configs /app/configs
-COPY --chown=waygate:waygate ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=waygate:waygate ./source/waygate_mcp.py /app/waygate_mcp.py
+COPY --chown=waygate:waygate ./source /app/src
+COPY --chown=waygate:waygate ./source/configs /app/configs
+COPY --chown=waygate:waygate ./deployment/scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod 550 /app/docker-entrypoint.sh
 
 # Security: Drop all capabilities and add only what's needed

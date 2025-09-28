@@ -33,6 +33,7 @@ prometheus-client==0.19.0
 # Database
 sqlalchemy==2.0.0
 alembic==1.13.0
+libsql-client==0.3.1
 
 # Security
 cryptography==42.0.0

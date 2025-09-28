@@ -1,0 +1,263 @@
+# proxy-config.yml
+# Waygate MCP Proxy Gateway Configuration
+version: "2.0"
+name: "Waygate MCP Security Proxy"
+description: "Enterprise-grade security proxy for external network access"
+
+# Proxy Gateway Settings
+proxy:
+  enabled: true
+  bind_address: "0.0.0.0"
+  bind_port: 8080
+  max_concurrent_connections: 1000
+  connection_timeout_seconds: 30
+  read_timeout_seconds: 30
+  write_timeout_seconds: 30
+
+  # Buffer settings for performance
+  buffer_size_kb: 64
+  max_request_size_mb: 50
+  max_response_size_mb: 100
+
+# Security Configuration
+security:
+  # TLS Configuration
+  tls:
+    enabled: true
+    verify_certificates: true
+    min_version: "TLSv1.2"
+    cipher_suites:
+      - "ECDHE-ECDSA-AES256-GCM-SHA384"
+      - "ECDHE-RSA-AES256-GCM-SHA384"
+      - "ECDHE-ECDSA-CHACHA20-POLY1305"
+      - "ECDHE-RSA-CHACHA20-POLY1305"
+      - "ECDHE-ECDSA-AES128-GCM-SHA256"
+      - "ECDHE-RSA-AES128-GCM-SHA256"
+
+  # Request Validation
+  request_validation:
+    enabled: true
+    validate_headers: true
+    validate_content_type: true
+    validate_content_length: true
+    block_malformed_requests: true
+    sanitize_headers: true
+    max_header_size_kb: 8
+    max_headers_count: 50
+
+  # Authentication & Authorization
+  authentication:
+    enabled: true
+    require_api_key: true
+    api_key_header: "X-API-Key"
+    validate_client_certificates: false
+    client_cert_header: "X-Client-Cert"
+
+  # Rate Limiting
+  rate_limiting:
+    enabled: true
+    algorithm: "sliding_window"
+    window_size_minutes: 1
+    default_requests_per_minute: 60
+    burst_multiplier: 2
+
+    # Per-client rate limits
+    client_limits:
+      mcp_servers: 100
+      internal_services: 200
+      external_clients: 30
+
+  # Content Inspection
+  content_inspection:
+    enabled: true
+    scan_request_body: true
+    scan_response_body: true
+    max_scan_size_mb: 10
+
+    # Malware scanning
+    malware_scan:
+      enabled: true
+      scan_uploads: true
+      scan_downloads: true
+      quarantine_threats: true
+
+    # Data Loss Prevention
+    dlp:
+      enabled: true
+      scan_sensitive_data: true
+      block_on_violation: true
+      patterns_file: "/app/config/dlp-patterns.yml"
+
+# Access Control
+access_control:
+  # Default policy (allow/deny)
+  default_policy: "deny"
+
+  # Egress rules file
+  rules_file: "/app/config/egress-rules.json"
+
+  # Dynamic rule updates
+  dynamic_updates:
+    enabled: true
+    reload_interval_minutes: 5
+    validate_before_reload: true
+
+  # IP-based restrictions
+  ip_restrictions:
+    enabled: true
+    whitelist:
+      - "127.0.0.0/8"
+      - "10.0.0.0/8"
+      - "172.16.0.0/12"
+      - "192.168.0.0/16"
+    blacklist:
+      - "0.0.0.0/32"
+      - "169.254.0.0/16"
+      - "224.0.0.0/4"
+
+# MCP Integration
+mcp_integration:
+  enabled: true
+  proxy_all_mcp_requests: true
+  validate_mcp_credentials: true
+  cache_mcp_responses: true
+  cache_ttl_minutes: 5
+
+  # MCP Server routing
+  server_routing:
+    firebase:
+      upstream: "firebase-mcp-server:8001"
+      health_check: "/health"
+      timeout_seconds: 30
+
+    bigquery:
+      upstream: "bigquery-mcp-server:8002"
+      health_check: "/health"
+      timeout_seconds: 45
+
+    github:
+      upstream: "github-mcp-server:8003"
+      health_check: "/health"
+      timeout_seconds: 20
+
+    slack:
+      upstream: "slack-mcp-server:8004"
+      health_check: "/health"
+      timeout_seconds: 15
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+
+  # Access logs
+  access_log:
+    enabled: true
+    file: "/app/logs/proxy-access.log"
+    rotation: "daily"
+    retention_days: 90
+    include_request_body: false
+    include_response_body: false
+
+  # Security logs
+  security_log:
+    enabled: true
+    file: "/app/logs/proxy-security.log"
+    rotation: "daily"
+    retention_days: 365
+    log_blocked_requests: true
+    log_rate_limited_requests: true
+    log_dlp_violations: true
+
+  # Audit logs
+  audit_log:
+    enabled: true
+    file: "/app/logs/proxy-audit.log"
+    rotation: "daily"
+    retention_days: 2555  # 7 years
+    log_all_requests: true
+    include_headers: true
+    include_timing: true
+
+  # Debug logs
+  debug_log:
+    enabled: false
+    file: "/app/logs/proxy-debug.log"
+    rotation: "hourly"
+    retention_hours: 24
+
+# Monitoring & Metrics
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  metrics_path: "/metrics"
+
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    include_labels: true
+    histogram_buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+
+  # Health checks
+  health_checks:
+    enabled: true
+    interval_seconds: 30
+    timeout_seconds: 10
+    failure_threshold: 3
+
+  # Alerting
+  alerting:
+    enabled: true
+    webhook_url: "${ALERTING_WEBHOOK_URL}"
+
+    # Alert thresholds
+    thresholds:
+      error_rate_percent: 5
+      response_time_p95_seconds: 2.0
+      rate_limit_violations_per_minute: 10
+      security_violations_per_minute: 5
+      connection_failures_per_minute: 20
+
+# Performance Optimization
+performance:
+  # Connection pooling
+  connection_pooling:
+    enabled: true
+    max_idle_connections: 100
+    max_connections_per_host: 50
+    idle_connection_timeout_minutes: 5
+
+  # Caching
+  caching:
+    enabled: true
+    max_cache_size_mb: 256
+    default_ttl_minutes: 5
+    cache_control_respect: true
+
+  # Compression
+  compression:
+    enabled: true
+    algorithms: ["gzip", "br"]
+    min_size_bytes: 1024
+    compression_level: 6
+
+# Backup & Recovery
+backup:
+  enabled: true
+  backup_interval_hours: 6
+  backup_retention_days: 30
+  backup_location: "/app/data/backups"
+
+  # What to backup
+  include:
+    - "configuration"
+    - "access_rules"
+    - "certificates"
+    - "audit_logs"
+
+# Feature Flags
+features:
+  experimental_http3: false
+  advanced_threat_detection: true
+  machine_learning_anomaly_detection: false
+  blockchain_certificate_validation: false

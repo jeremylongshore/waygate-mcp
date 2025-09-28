@@ -186,6 +186,30 @@ class DatabaseConfig:
                 context JSON,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+            """,
+
+            # MCP Servers table
+            """
+            CREATE TABLE IF NOT EXISTS mcp_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                server_type TEXT NOT NULL CHECK (server_type IN ('firebase', 'bigquery', 'github', 'n8n', 'docker_hub', 'slack')),
+                display_name TEXT NOT NULL,
+                description TEXT,
+                config JSON NOT NULL DEFAULT '{}',
+                credentials JSON NOT NULL DEFAULT '{}',
+                communication_method TEXT DEFAULT 'stdio' CHECK (communication_method IN ('stdio', 'http', 'python', 'subprocess')),
+                status TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'error', 'configuring')),
+                version TEXT,
+                last_sync TIMESTAMP,
+                error_message TEXT,
+                error_count INTEGER DEFAULT 0,
+                tool_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by TEXT,
+                updated_by TEXT
+            )
             """
         ]
 
@@ -201,7 +225,11 @@ class DatabaseConfig:
             "CREATE INDEX IF NOT EXISTS idx_command_history_created ON command_history(created_at)",
             "CREATE INDEX IF NOT EXISTS idx_metrics_name_time ON metrics(metric_name, timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_system_events_type ON system_events(event_type)",
-            "CREATE INDEX IF NOT EXISTS idx_system_events_created ON system_events(created_at)"
+            "CREATE INDEX IF NOT EXISTS idx_system_events_created ON system_events(created_at)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_servers_name ON mcp_servers(name)",
+            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_type ON mcp_servers(server_type)",
+            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_status ON mcp_servers(status)",
+            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_updated ON mcp_servers(updated_at)"
         ]
 
         try:
@@ -465,3 +493,293 @@ async def log_system_event(event_type: str, event_name: str, description: str = 
 
 # Import required for JSON handling
 import json
+
+# MCP Server Management Functions
+async def register_mcp_server(name: str, server_type: str, display_name: str,
+                             description: str = None, config: Dict[str, Any] = None,
+                             credentials: Dict[str, Any] = None,
+                             communication_method: str = "stdio",
+                             created_by: str = "system") -> bool:
+    """
+    Register a new MCP server configuration
+
+    Args:
+        name: Unique name for the MCP server
+        server_type: Type of MCP server (firebase, bigquery, etc.)
+        display_name: Human-readable display name
+        description: Optional description
+        config: Server configuration
+        credentials: Server credentials (will be stored securely)
+        communication_method: How to communicate with the server
+        created_by: User who created the configuration
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        query = """
+            INSERT OR REPLACE INTO mcp_servers
+            (name, server_type, display_name, description, config, credentials,
+             communication_method, status, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'inactive', ?, ?)
+        """
+
+        if db_manager.config.is_turso:
+            db_manager.config.client.execute(query, [
+                name, server_type, display_name, description,
+                json.dumps(config or {}),
+                json.dumps(credentials or {}),
+                communication_method, created_by, created_by
+            ])
+        else:
+            await db_manager.execute_query(
+                "INSERT OR REPLACE INTO mcp_servers "
+                "(name, server_type, display_name, description, config, credentials, "
+                "communication_method, status, created_by, updated_by) "
+                "VALUES (:name, :server_type, :display_name, :description, :config, "
+                ":credentials, :communication_method, 'inactive', :created_by, :updated_by)",
+                {
+                    "name": name,
+                    "server_type": server_type,
+                    "display_name": display_name,
+                    "description": description,
+                    "config": json.dumps(config or {}),
+                    "credentials": json.dumps(credentials or {}),
+                    "communication_method": communication_method,
+                    "created_by": created_by,
+                    "updated_by": created_by
+                }
+            )
+
+        logger.info(f"📝 MCP server registered: {name} ({server_type})")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Failed to register MCP server {name}: {e}")
+        return False
+
+async def get_mcp_server(name: str) -> Optional[Dict[str, Any]]:
+    """
+    Get MCP server configuration by name
+
+    Args:
+        name: MCP server name
+
+    Returns:
+        MCP server configuration or None if not found
+    """
+    try:
+        result = await db_manager.execute_query(
+            "SELECT * FROM mcp_servers WHERE name = ?",
+            [name]
+        )
+
+        if result:
+            server = result[0]
+            # Parse JSON fields
+            server["config"] = json.loads(server["config"])
+            server["credentials"] = json.loads(server["credentials"])
+            return server
+
+        return None
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get MCP server {name}: {e}")
+        return None
+
+async def list_mcp_servers(status: str = None) -> List[Dict[str, Any]]:
+    """
+    List all MCP servers, optionally filtered by status
+
+    Args:
+        status: Optional status filter
+
+    Returns:
+        List of MCP server configurations
+    """
+    try:
+        if status:
+            query = "SELECT * FROM mcp_servers WHERE status = ? ORDER BY name"
+            params = [status]
+        else:
+            query = "SELECT * FROM mcp_servers ORDER BY name"
+            params = []
+
+        result = await db_manager.execute_query(query, params)
+
+        servers = []
+        for server in result:
+            # Parse JSON fields
+            server["config"] = json.loads(server["config"])
+            server["credentials"] = json.loads(server["credentials"])
+            servers.append(server)
+
+        return servers
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list MCP servers: {e}")
+        return []
+
+async def update_mcp_server_status(name: str, status: str, error_message: str = None,
+                                  tool_count: int = None) -> bool:
+    """
+    Update MCP server status
+
+    Args:
+        name: MCP server name
+        status: New status
+        error_message: Optional error message
+        tool_count: Optional tool count
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        update_fields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"]
+        params = [status]
+
+        if error_message is not None:
+            update_fields.append("error_message = ?")
+            params.append(error_message)
+            if status == "error":
+                update_fields.append("error_count = error_count + 1")
+
+        if tool_count is not None:
+            update_fields.append("tool_count = ?")
+            params.append(tool_count)
+
+        if status == "active":
+            update_fields.append("last_sync = CURRENT_TIMESTAMP")
+
+        params.append(name)  # WHERE clause parameter
+
+        query = f"UPDATE mcp_servers SET {', '.join(update_fields)} WHERE name = ?"
+
+        if db_manager.config.is_turso:
+            db_manager.config.client.execute(query, params)
+        else:
+            await db_manager.execute_query(query, params)
+
+        logger.debug(f"📝 MCP server status updated: {name} -> {status}")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Failed to update MCP server status: {e}")
+        return False
+
+async def delete_mcp_server(name: str) -> bool:
+    """
+    Delete MCP server configuration
+
+    Args:
+        name: MCP server name
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        if db_manager.config.is_turso:
+            db_manager.config.client.execute(
+                "DELETE FROM mcp_servers WHERE name = ?",
+                [name]
+            )
+        else:
+            await db_manager.execute_query(
+                "DELETE FROM mcp_servers WHERE name = ?",
+                [name]
+            )
+
+        logger.info(f"🗑️ MCP server deleted: {name}")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Failed to delete MCP server {name}: {e}")
+        return False
+
+async def initialize_default_mcp_servers():
+    """Initialize default MCP server configurations"""
+    default_servers = [
+        {
+            "name": "firebase_mcp",
+            "server_type": "firebase",
+            "display_name": "Firebase MCP Server",
+            "description": "Google Firebase CLI MCP server integration for DiagnosticPro",
+            "config": {
+                "project_id": "diagnostic-pro-start-up",
+                "region": "us-central1",
+                "features": ["auth", "firestore", "functions", "hosting"]
+            },
+            "credentials": {},
+            "communication_method": "stdio"
+        },
+        {
+            "name": "bigquery_mcp",
+            "server_type": "bigquery",
+            "display_name": "BigQuery MCP Server",
+            "description": "Google Cloud BigQuery MCP server for analytics",
+            "config": {
+                "project_id": "diagnostic-pro-start-up",
+                "dataset": "diagnosticpro_prod",
+                "region": "us-central1"
+            },
+            "credentials": {},
+            "communication_method": "python"
+        },
+        {
+            "name": "github_mcp",
+            "server_type": "github",
+            "display_name": "GitHub MCP Server",
+            "description": "Official GitHub MCP server integration",
+            "config": {
+                "owner": "jeremylongshore",
+                "repositories": ["waygate-mcp", "diagnostic-platform"]
+            },
+            "credentials": {},
+            "communication_method": "stdio"
+        },
+        {
+            "name": "n8n_mcp",
+            "server_type": "n8n",
+            "display_name": "n8n Workflow MCP Server",
+            "description": "n8n workflow automation MCP server (525+ nodes)",
+            "config": {
+                "api_url": "https://n8n.yourdomain.com",
+                "node_count": 525
+            },
+            "credentials": {},
+            "communication_method": "http"
+        },
+        {
+            "name": "docker_hub_mcp",
+            "server_type": "docker_hub",
+            "display_name": "Docker Hub MCP Server",
+            "description": "Official Docker Hub MCP server integration",
+            "config": {
+                "registry": "hub.docker.com",
+                "organization": "your-org"
+            },
+            "credentials": {},
+            "communication_method": "subprocess"
+        },
+        {
+            "name": "slack_mcp",
+            "server_type": "slack",
+            "display_name": "Slack MCP Server",
+            "description": "Slack MCP server for Bob's Brain integration",
+            "config": {
+                "workspace": "intent-solutions",
+                "bot_name": "bobs-brain"
+            },
+            "credentials": {},
+            "communication_method": "http"
+        }
+    ]
+
+    try:
+        for server_config in default_servers:
+            await register_mcp_server(**server_config)
+
+        logger.info(f"✅ Initialized {len(default_servers)} default MCP servers")
+
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize default MCP servers: {e}")

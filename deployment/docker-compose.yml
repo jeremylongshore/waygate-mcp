@@ -5,8 +5,8 @@ version: '3.8'
 services:
   waygate:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deployment/Dockerfile
       args:
         BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
         VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD)}
@@ -56,6 +56,37 @@ services:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
 
+      # MCP Server Integration Environment Variables
+      # Firebase MCP Server
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-diagnostic-pro-start-up}
+      - FIREBASE_REGION=${FIREBASE_REGION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+
+      # Google Cloud / BigQuery MCP Server
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-diagnostic-pro-start-up}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET:-diagnosticpro_prod}
+
+      # GitHub MCP Server
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_OWNER=${GITHUB_OWNER:-jeremylongshore}
+
+      # n8n MCP Server
+      - N8N_API_URL=${N8N_API_URL}
+      - N8N_API_KEY=${N8N_API_KEY}
+
+      # Docker Hub MCP Server
+      - DOCKER_HUB_TOKEN=${DOCKER_HUB_TOKEN}
+      - DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME}
+
+      # Slack MCP Server (Bob's Brain integration)
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_WORKSPACE=${SLACK_WORKSPACE:-intent-solutions}
+
+      # MCP Configuration
+      - MCP_SERVERS_ENABLED=${MCP_SERVERS_ENABLED:-firebase,bigquery,github}
+      - MCP_AUTO_INITIALIZE=${MCP_AUTO_INITIALIZE:-true}
+
     # Security: Network isolation
     networks:
       - waygate-network
@@ -67,7 +98,6 @@ services:
     security_opt:
       - no-new-privileges:true
       - apparmor:docker-default
-      - seccomp:default
 
     # Security: Capabilities (drop all, add only needed)
     cap_drop:
@@ -77,9 +107,6 @@ services:
 
     # Security: User namespace remapping
     userns_mode: "host"
-
-    # Security: PID limits
-    pids_limit: 100
 
     # Security: Disable inter-process communication
     ipc: none

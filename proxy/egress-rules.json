@@ -1,0 +1,195 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-09-28T00:00:00Z",
+  "description": "Waygate MCP Proxy - Egress Access Control Rules",
+  "default_policy": "deny",
+  "rules": [
+    {
+      "name": "Firebase APIs",
+      "description": "Google Firebase services for MCP integration",
+      "enabled": true,
+      "domains": [
+        "*.googleapis.com",
+        "firebase.googleapis.com",
+        "firestore.googleapis.com",
+        "identitytoolkit.googleapis.com",
+        "securetoken.googleapis.com"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 100,
+        "burst": 20
+      },
+      "audit": true,
+      "mcp_servers": ["firebase"]
+    },
+    {
+      "name": "BigQuery APIs",
+      "description": "Google BigQuery services for data operations",
+      "enabled": true,
+      "domains": [
+        "bigquery.googleapis.com",
+        "storage.googleapis.com",
+        "*.googleapis.com"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 50,
+        "burst": 10
+      },
+      "audit": true,
+      "mcp_servers": ["bigquery"]
+    },
+    {
+      "name": "GitHub APIs",
+      "description": "GitHub services for repository operations",
+      "enabled": true,
+      "domains": [
+        "api.github.com",
+        "github.com",
+        "raw.githubusercontent.com",
+        "codeload.github.com"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 80,
+        "burst": 15
+      },
+      "audit": true,
+      "mcp_servers": ["github"]
+    },
+    {
+      "name": "Slack APIs",
+      "description": "Slack services for messaging integration",
+      "enabled": true,
+      "domains": [
+        "slack.com",
+        "api.slack.com",
+        "hooks.slack.com",
+        "files.slack.com"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "burst": 12
+      },
+      "audit": true,
+      "mcp_servers": ["slack"]
+    },
+    {
+      "name": "Docker Hub APIs",
+      "description": "Docker Hub registry services",
+      "enabled": true,
+      "domains": [
+        "registry-1.docker.io",
+        "auth.docker.io",
+        "production.cloudflare.docker.com",
+        "index.docker.io"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 30,
+        "burst": 8
+      },
+      "audit": true,
+      "mcp_servers": ["docker_hub"]
+    },
+    {
+      "name": "n8n APIs",
+      "description": "n8n automation platform integration",
+      "enabled": true,
+      "domains": [
+        "n8n.io",
+        "api.n8n.io",
+        "app.n8n.cloud"
+      ],
+      "protocols": ["https"],
+      "ports": [443],
+      "rate_limit": {
+        "requests_per_minute": 40,
+        "burst": 10
+      },
+      "audit": true,
+      "mcp_servers": ["n8n"]
+    },
+    {
+      "name": "System Dependencies",
+      "description": "Critical system updates and package repositories",
+      "enabled": true,
+      "domains": [
+        "deb.debian.org",
+        "security.debian.org",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "get.tur.so"
+      ],
+      "protocols": ["https", "http"],
+      "ports": [443, 80],
+      "rate_limit": {
+        "requests_per_minute": 20,
+        "burst": 5
+      },
+      "audit": true,
+      "mcp_servers": ["system"],
+      "schedule": {
+        "allowed_hours": [2, 3, 4]
+      }
+    },
+    {
+      "name": "DNS Resolution",
+      "description": "DNS servers for domain resolution",
+      "enabled": true,
+      "domains": ["*"],
+      "protocols": ["dns"],
+      "ports": [53],
+      "rate_limit": {
+        "requests_per_minute": 200,
+        "burst": 50
+      },
+      "audit": false
+    }
+  ],
+  "security_policies": {
+    "content_inspection": {
+      "enabled": true,
+      "scan_uploads": true,
+      "scan_downloads": true,
+      "max_file_size_mb": 100,
+      "blocked_extensions": [".exe", ".bat", ".cmd", ".scr", ".pif", ".com"],
+      "virus_scan": true
+    },
+    "data_loss_prevention": {
+      "enabled": true,
+      "scan_patterns": [
+        "(?i)(password|passwd|pwd)\\s*[:=]\\s*[\"']?[\\w!@#$%^&*()-_+={}\\[\\]|\\\\:;\"'<>,.?/~`]{8,}",
+        "(?i)(api[_-]?key|apikey)\\s*[:=]\\s*[\"']?[\\w-]{20,}",
+        "(?i)(secret|token)\\s*[:=]\\s*[\"']?[\\w-]{20,}",
+        "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b",
+        "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      ],
+      "action": "block"
+    },
+    "request_validation": {
+      "max_request_size_mb": 50,
+      "require_user_agent": true,
+      "block_suspicious_patterns": true,
+      "validate_ssl_certificates": true
+    }
+  },
+  "monitoring": {
+    "log_all_requests": true,
+    "log_blocked_requests": true,
+    "log_rate_limited_requests": true,
+    "metrics_collection": true,
+    "alerting": {
+      "suspicious_activity_threshold": 10,
+      "rate_limit_violations_threshold": 5,
+      "content_violations_threshold": 3
+    }
+  }
+}

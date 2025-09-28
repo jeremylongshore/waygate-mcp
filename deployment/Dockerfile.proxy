@@ -1,0 +1,110 @@
+# Dockerfile.proxy
+# Enhanced security-hardened build for Waygate MCP Proxy Gateway
+FROM python:3.12-slim-bookworm AS builder
+
+# Security and metadata
+ARG PYTHON_VERSION=3.12.1
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION=2.0.0
+
+LABEL org.opencontainers.image.created=$BUILD_DATE \
+      org.opencontainers.image.title="Waygate MCP Proxy Gateway" \
+      org.opencontainers.image.description="Security-hardened MCP Server with Proxy Gateway capabilities" \
+      org.opencontainers.image.version=$VERSION
+
+# Install build dependencies and security tools
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        gcc g++ make \
+        libssl-dev libffi-dev \
+        pkg-config \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create build user
+RUN groupadd -r builder && useradd -r -g builder -m builder
+USER builder
+WORKDIR /build
+
+# Copy requirements and build wheels
+COPY --chown=builder:builder ./source/requirements-proxy.txt ./
+RUN pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
+    pip wheel --no-cache-dir --wheel-dir /build/wheels -r requirements-proxy.txt
+
+#
+# Production stage with enhanced security for proxy operations
+#
+FROM python:3.12-slim-bookworm
+
+# Install runtime dependencies and security tools
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        curl wget \
+        libcap2-bin \
+        dumb-init \
+        iptables \
+        ca-certificates \
+        openssl \
+        jq \
+        netcat-openbsd \
+        tcpdump \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create proxy gateway user with enhanced permissions
+RUN groupadd -r waygate -g 1000 && \
+    useradd -r -u 1000 -g waygate \
+        -d /home/waygate \
+        -s /sbin/nologin \
+        -c "Waygate Proxy Gateway user" waygate && \
+    mkdir -p /home/waygate && \
+    chown -R waygate:waygate /home/waygate
+
+# Set up enhanced app directory structure
+WORKDIR /app
+RUN mkdir -p /app/logs /app/data /app/.waygate /app/tmp \
+             /app/config /app/certs /app/policies \
+             /app/monitoring /app/proxy && \
+    chown -R waygate:waygate /app && \
+    chmod 750 /app && \
+    chmod 770 /app/logs /app/data /app/.waygate /app/tmp && \
+    chmod 755 /app/config /app/certs /app/policies
+
+# Copy wheels and install
+COPY --from=builder /build/wheels /tmp/wheels
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --no-index --find-links=/tmp/wheels /tmp/wheels/* && \
+    rm -rf /tmp/wheels /root/.cache/pip
+
+# Copy application code with proper ownership
+COPY --chown=waygate:waygate ./source /app/src
+COPY --chown=waygate:waygate ./proxy /app/proxy
+COPY --chown=waygate:waygate ./policies /app/policies
+COPY --chown=waygate:waygate ./monitoring /app/monitoring
+COPY --chown=waygate:waygate ./scripts/proxy-entrypoint.sh /app/proxy-entrypoint.sh
+
+# Copy security configurations
+COPY --chown=waygate:waygate ./security/seccomp-proxy.json /app/config/seccomp-proxy.json
+COPY --chown=waygate:waygate ./security/apparmor-proxy /etc/apparmor.d/waygate-proxy
+
+RUN chmod 550 /app/proxy-entrypoint.sh
+
+# Set up proxy-specific capabilities
+RUN setcap 'cap_net_bind_service,cap_net_admin,cap_net_raw=+ep' /usr/local/bin/python3.12
+
+# Security: Drop privileges
+USER waygate
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Enhanced health check for proxy gateway
+HEALTHCHECK --interval=30s --timeout=15s --start-period=45s --retries=3 \
+    CMD curl -f http://localhost:8000/health && \
+        curl -f http://localhost:8080/proxy/health || exit 1
+
+# Expose proxy gateway ports
+EXPOSE 8000 8080
+
+CMD ["/app/proxy-entrypoint.sh"]
