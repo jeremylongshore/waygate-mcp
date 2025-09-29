@@ -10,6 +10,7 @@ import json
 import asyncio
 import logging
 import signal
+import secrets
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -25,8 +26,9 @@ import click
 import structlog
 
 # Waygate MCP modules
-from database import init_database, db_manager
-from mcp_integration import initialize_mcp_integration, get_mcp_manager
+from .database import init_database, db_manager
+from .mcp_integration import initialize_mcp_integration, get_mcp_manager
+from .mcp_tools import execute_tool, get_available_tools, MCPToolError
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
@@ -83,7 +85,7 @@ class WaygateSettings(BaseSettings):
     reload: bool = Field(default=False, alias="WAYGATE_RELOAD")
 
     # Security
-    secret_key: str = Field(default="change-this-in-production", alias="WAYGATE_SECRET_KEY")
+    secret_key: str = Field(default=None, alias="WAYGATE_SECRET_KEY")
     api_key: Optional[str] = Field(default=None, alias="WAYGATE_API_KEY")
     cors_origins: list = Field(default=["http://localhost:3000"], alias="WAYGATE_CORS_ORIGINS")
 
@@ -91,6 +93,45 @@ class WaygateSettings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         populate_by_name = True
+        extra = "ignore"  # Ignore extra environment variables
+
+    def __post_init__(self):
+        """Generate secure secret key if none provided and validate environment"""
+        if self.secret_key is None:
+            self.secret_key = secrets.token_hex(32)
+            logger.warning("No secret key provided, generated secure random key")
+
+        # Validate and create directories
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.projects_dir.mkdir(parents=True, exist_ok=True)
+
+        # Validate environment
+        self._validate_environment()
+
+    def _validate_environment(self):
+        """Validate environment configuration"""
+        warnings = []
+
+        # Check database URL
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            warnings.append("DATABASE_URL not set, will use local SQLite")
+        elif "turso.io" in database_url:
+            warnings.append("Using Turso database - ensure connectivity")
+
+        # Check host binding
+        if self.host == "0.0.0.0" and self.env == "production":
+            warnings.append("Binding to 0.0.0.0 in production - ensure firewall configured")
+
+        # Check CORS origins
+        if "localhost" in str(self.cors_origins) and self.env == "production":
+            warnings.append("CORS allows localhost in production - potential security risk")
+
+        # Log warnings
+        for warning in warnings:
+            logger.warning(f"Environment validation: {warning}")
+
+        return len(warnings) == 0
 
 
 class MCPCommand(BaseModel):
@@ -245,7 +286,7 @@ class WaygateServer:
 
         @app.post("/mcp/execute", response_model=MCPResponse, tags=["MCP"])
         async def execute_mcp(command: MCPCommand):
-            """Execute MCP command"""
+            """Execute MCP command using real tool handlers"""
             start_time = datetime.utcnow()
             command_id = f"cmd_{start_time.timestamp()}"
 
@@ -257,18 +298,15 @@ class WaygateServer:
             )
 
             try:
-                # TODO: Implement actual command execution
-                # This is where the MCP engine would process the command
-                result = {
-                    "message": f"Command '{command.action}' executed successfully",
-                    "params_received": command.params
-                }
+                # Execute actual MCP tool
+                result = await execute_tool(command.action, command.params)
 
                 duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
                 return MCPResponse(
-                    status="success",
-                    result=result,
+                    status=result["status"],
+                    result=result.get("result"),
+                    error=result.get("error"),
                     duration_ms=duration_ms,
                     command_id=command_id
                 )
@@ -324,28 +362,44 @@ class WaygateServer:
 
         @app.get("/mcp/tools", tags=["MCP"])
         async def list_mcp_tools():
-            """List all tools from all MCP servers"""
+            """List all available MCP tools"""
             try:
-                mcp_manager = await get_mcp_manager()
-                tools = await mcp_manager.get_all_mcp_tools()
+                # Get local tools
+                local_tools = get_available_tools()
 
-                # Flatten tools for easier access
+                # Try to get external MCP server tools
+                external_tools = {}
+                try:
+                    mcp_manager = await get_mcp_manager()
+                    external_tools = await mcp_manager.get_all_mcp_tools()
+                except Exception as e:
+                    self.logger.warning("Could not get external MCP tools", error=str(e))
+
+                # Flatten all tools for easier access
                 all_tools = []
-                for server_name, server_tools in tools.items():
+
+                # Add local tools
+                for tool in local_tools:
+                    tool["mcp_server"] = "waygate-local"
+                    all_tools.append(tool)
+
+                # Add external tools
+                for server_name, server_tools in external_tools.items():
                     for tool in server_tools:
                         tool["mcp_server"] = server_name
                         all_tools.append(tool)
 
                 return {
                     "total_tools": len(all_tools),
-                    "tools_by_server": tools,
+                    "local_tools": local_tools,
+                    "external_tools": external_tools,
                     "all_tools": all_tools
                 }
             except Exception as e:
                 self.logger.error("mcp_tools_list_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
-        @app.post("/mcp/execute", tags=["MCP"])
+        @app.post("/mcp/tools/execute", tags=["MCP"])
         async def execute_mcp_tool(request: dict):
             """Execute a tool on a specific MCP server"""
             try:
@@ -454,11 +508,19 @@ class WaygateServer:
             environment=self.settings.env
         )
 
-        # Initialize database
-        await init_database()
+        # Initialize database (with fallback)
+        try:
+            await init_database()
+            self.logger.info("Database initialized successfully")
+        except Exception as e:
+            self.logger.warning(f"Database initialization failed, continuing without database: {str(e)}")
 
-        # Initialize MCP integration system
-        await initialize_mcp_integration()
+        # Initialize MCP integration system (optional)
+        try:
+            await initialize_mcp_integration()
+            self.logger.info("MCP integration initialized successfully")
+        except Exception as e:
+            self.logger.warning(f"MCP integration failed, continuing with local tools only: {str(e)}")
 
         config = uvicorn.Config(
             app=self.app,

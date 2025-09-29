@@ -10,11 +10,11 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 
-from database import (
+from .database import (
     db_manager, initialize_default_mcp_servers, list_mcp_servers,
     get_mcp_server, update_mcp_server_status
 )
-from plugins.plugin_loader import get_plugin_loader
+from .plugins.plugin_loader import get_plugin_loader
 
 logger = logging.getLogger("waygate_mcp.mcp_integration")
 

@@ -1,0 +1,45 @@
+# Waygate MCP Firewall Rules Configuration
+# This file defines egress firewall rules for external access control
+
+# Docker Compose override for enhanced network security
+version: '3.8'
+
+services:
+  waygate:
+    # Restrict network access using Docker's built-in networking
+    networks:
+      waygate-secure:
+        aliases:
+          - waygate-app
+
+    # Additional security configurations
+    sysctls:
+      - net.ipv4.conf.all.send_redirects=0
+      - net.ipv4.conf.default.send_redirects=0
+      - net.ipv4.conf.all.accept_redirects=0
+      - net.ipv4.conf.default.accept_redirects=0
+      - net.ipv4.conf.all.secure_redirects=0
+      - net.ipv4.conf.default.secure_redirects=0
+
+networks:
+  waygate-secure:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"  # Disable inter-container communication
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+          gateway: 172.29.0.1
+    labels:
+      - "waygate.security.level=high"
+      - "waygate.network.type=isolated"
+
+# Allowed external domains (for documentation)
+# These should be configured in application-level firewall rules:
+# - turso.tech (Turso database)
+# - *.googleapis.com (Google Cloud services)
+# - api.github.com (GitHub API)
+# - hooks.slack.com (Slack webhooks)
+# - registry-1.docker.io (Docker Hub)

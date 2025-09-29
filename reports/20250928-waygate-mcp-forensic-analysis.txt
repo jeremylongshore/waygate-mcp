@@ -1,0 +1,94 @@
+[H[J[3J╔══════════════════════════════════════════════════════════╗
+║                    WAYGATE-MCP FORENSIC DASHBOARD        ║
+║                        2025-09-28                           ║
+║                                                          ║
+║  User: waygateai | Project: waygate-mcp                 ║
+╚══════════════════════════════════════════════════════════╝
+
+🏥 REPOSITORY HEALTH SCORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Status: 🔴 CRITICAL - SERVER CANNOT START
+
+📊 TASK METRICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Pending Tasks: 5
+🚨 Security Issues: 0
+🔴 Critical Issues: 1
+🟠 High Priority: 2
+✅ Completed: 6
+📈 Completion Rate: 54%
+
+🎯 IMMEDIATE ACTIONS (Critical Path)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID Critical Issue                                                       Est.Time
+-- -------------------------------------------------------------------- --------
+24 Missing mcp.json server manifest - required for MCP protocol             PT5M
+   compliance
+
+1 task
+
+🔐 SECURITY ALERTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+No security issues found
+
+🚧 BLOCKED TASKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID Task
+-- -----------------------------------------------------------------------
+24 Missing mcp.json server manifest - required for MCP protocol compliance
+26 MCP tools endpoints return placeholder data instead of real tools
+28 Missing environment variable validation and defaults
+25 Project structure doesn't follow MCP server conventions
+27 Missing claude_desktop_config.json and integration documentation
+
+5 tasks
+
+⏱️ TIME INVESTMENT ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Estimated Fix Time: 0 minutes (0 hours)
+
+📋 COMPONENT BREAKDOWN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+server: 1 tasks
+tools: 1 tasks
+documentation: 1 tasks
+
+🔄 NEXT ACTIONS (Ready to Execute)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+No unblocked tasks ready
+
+📈 QUICK WINS (≤5min fixes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID Quick Fix                                                               Time
+-- ----------------------------------------------------------------------- ----
+24 Missing mcp.json server manifest - required for MCP protocol compliance PT5M
+
+1 task
+
+📅 TODAY'S FOCUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ID Task                                  Time PR Title
+-- ------------------------------------- ---- ----------------------------------
+24 Missing mcp.json server manifest -    PT5M fix: add missing MCP manifest
+   required for MCP protocol compliance       files
+
+1 task
+
+🔗 EXECUTION COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Start first critical task: task $(task project:waygate-mcp +CRITICAL limit:1 ids) start
+View critical context:     task context mcp-critical
+Mark task complete:        task [ID] done
+View next ready task:      task project:waygate-mcp ready next
+Generate report:           ./scripts/dashboard.sh > reports/$(date +%Y%m%d)-waygate-mcp.txt
+
+╔══════════════════════════════════════════════════════════╗
+║  CRITICAL PATH: Fix dependencies → Install FastAPI →     ║
+║  Resolve imports → Fix endpoints → Implement MCP tools   ║
+║                                                          ║
+║  USER: waygateai | PROJECT: waygate-mcp                 ║
+╚══════════════════════════════════════════════════════════╝

@@ -1,0 +1,236 @@
+{
+  "mcpVersion": "1.0.0",
+  "server": {
+    "name": "waygate-mcp",
+    "version": "2.1.0",
+    "description": "Enterprise-grade MCP Server Framework - Successor to NEXUS MCP",
+    "author": "waygateai",
+    "homepage": "https://github.com/waygateai/waygate-mcp",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/waygateai/waygate-mcp.git"
+    },
+    "license": "MIT",
+    "entrypoint": {
+      "type": "python",
+      "module": "source.waygate_mcp",
+      "function": "main"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true,
+        "parameterSchemas": true
+      },
+      "resources": {
+        "subscribe": true,
+        "listChanged": true
+      },
+      "prompts": {
+        "listChanged": true
+      },
+      "logging": {
+        "level": "info"
+      }
+    },
+    "tools": [
+      {
+        "name": "execute_command",
+        "description": "Execute system commands with safety validation",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Command to execute"
+            },
+            "timeout": {
+              "type": "integer",
+              "description": "Timeout in seconds",
+              "default": 30
+            }
+          },
+          "required": ["command"]
+        }
+      },
+      {
+        "name": "read_file",
+        "description": "Read file contents with safety validation",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "File path to read"
+            },
+            "encoding": {
+              "type": "string",
+              "description": "File encoding",
+              "default": "utf-8"
+            }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "write_file",
+        "description": "Write content to file with safety validation",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "File path to write"
+            },
+            "content": {
+              "type": "string",
+              "description": "Content to write"
+            },
+            "encoding": {
+              "type": "string",
+              "description": "File encoding",
+              "default": "utf-8"
+            }
+          },
+          "required": ["path", "content"]
+        }
+      },
+      {
+        "name": "list_directory",
+        "description": "List directory contents with filtering",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Directory path to list"
+            },
+            "recursive": {
+              "type": "boolean",
+              "description": "Recursive listing",
+              "default": false
+            },
+            "pattern": {
+              "type": "string",
+              "description": "File pattern filter",
+              "default": "*"
+            }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "search_files",
+        "description": "Search for files by content or name",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query"
+            },
+            "path": {
+              "type": "string",
+              "description": "Search path",
+              "default": "."
+            },
+            "type": {
+              "type": "string",
+              "enum": ["content", "filename", "both"],
+              "description": "Search type",
+              "default": "both"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "analyze_project",
+        "description": "Analyze project structure and provide insights",
+        "arguments": [
+          {
+            "name": "project_path",
+            "description": "Path to the project to analyze",
+            "required": true
+          },
+          {
+            "name": "analysis_type",
+            "description": "Type of analysis to perform",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "security_audit",
+        "description": "Perform security audit of codebase",
+        "arguments": [
+          {
+            "name": "scan_path",
+            "description": "Path to scan for security issues",
+            "required": true
+          },
+          {
+            "name": "severity_filter",
+            "description": "Minimum severity level to report",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "resources": [
+      {
+        "uri": "file://logs/",
+        "name": "Server Logs",
+        "description": "Access to server log files",
+        "mimeType": "text/plain"
+      },
+      {
+        "uri": "db://metrics/",
+        "name": "Performance Metrics",
+        "description": "Access to performance and usage metrics",
+        "mimeType": "application/json"
+      }
+    ]
+  },
+  "runtime": {
+    "python": {
+      "version": ">=3.11",
+      "requirements": [
+        "fastapi>=0.100.0",
+        "uvicorn>=0.23.0",
+        "libsql-client>=0.3.1",
+        "python-dotenv>=1.0.0",
+        "structlog>=25.0.0",
+        "pydantic-settings>=2.0.0",
+        "click>=8.0.0",
+        "psutil>=5.9.0"
+      ]
+    }
+  },
+  "config": {
+    "environment": {
+      "WAYGATE_SECRET_KEY": {
+        "description": "Secret key for JWT tokens and encryption",
+        "required": false,
+        "type": "string"
+      },
+      "WAYGATE_API_KEY": {
+        "description": "API key for authentication",
+        "required": false,
+        "type": "string"
+      },
+      "DATABASE_URL": {
+        "description": "Database connection URL",
+        "required": false,
+        "type": "string"
+      },
+      "WAYGATE_LOG_LEVEL": {
+        "description": "Logging level",
+        "required": false,
+        "type": "string",
+        "default": "INFO"
+      }
+    }
+  }
+}

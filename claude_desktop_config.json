@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "waygate-mcp": {
+      "command": "python",
+      "args": [
+        "-m",
+        "source.waygate_mcp",
+        "--port", "8000",
+        "--env", "production"
+      ],
+      "cwd": "/home/jeremy/waygate-mcp",
+      "env": {
+        "WAYGATE_ENV": "production",
+        "WAYGATE_LOG_LEVEL": "INFO",
+        "WAYGATE_SECRET_KEY": "your-secure-secret-key-here",
+        "WAYGATE_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
