@@ -9,6 +9,7 @@ import json
 import asyncio
 import subprocess
 import logging
+import aiohttp
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -299,6 +300,60 @@ class MCPToolsHandler:
             logger.error(f"File search failed: {str(e)}")
             raise MCPToolError(f"File search failed: {str(e)}")
 
+    async def http_request(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Make HTTP requests for external API calls (like X/Twitter API)"""
+        try:
+            method = parameters.get("method", "GET").upper()
+            url = parameters.get("url")
+            headers = parameters.get("headers", {})
+            json_data = parameters.get("json")
+            data = parameters.get("data")
+            timeout = parameters.get("timeout", 30)
+
+            if not url:
+                raise MCPToolError("URL parameter is required")
+
+            # Security validation: only allow HTTPS for external APIs
+            if not url.startswith("https://"):
+                raise MCPToolError("Only HTTPS URLs are allowed for external requests")
+
+            logger.info(f"Making HTTP {method} request to: {url}")
+
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+                async with session.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    json=json_data,
+                    data=data
+                ) as response:
+                    response_text = await response.text()
+
+                    # Try to parse as JSON, fallback to text
+                    try:
+                        response_data = await response.json() if response_text else None
+                    except:
+                        response_data = response_text
+
+                    return {
+                        "success": True,
+                        "status_code": response.status,
+                        "headers": dict(response.headers),
+                        "data": response_data,
+                        "url": url,
+                        "method": method
+                    }
+
+        except MCPToolError:
+            raise
+        except aiohttp.ClientTimeout:
+            raise MCPToolError(f"Request timeout after {timeout} seconds")
+        except aiohttp.ClientError as e:
+            raise MCPToolError(f"HTTP client error: {str(e)}")
+        except Exception as e:
+            logger.error(f"HTTP request failed: {str(e)}")
+            raise MCPToolError(f"HTTP request failed: {str(e)}")
+
     def _get_file_info(self, path: Path) -> Dict[str, Any]:
         """Get file/directory information"""
         try:
@@ -328,7 +383,8 @@ TOOL_REGISTRY = {
     "read_file": tools_handler.read_file,
     "write_file": tools_handler.write_file,
     "list_directory": tools_handler.list_directory,
-    "search_files": tools_handler.search_files
+    "search_files": tools_handler.search_files,
+    "http_request": tools_handler.http_request
 }
 
 async def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -409,6 +465,18 @@ def get_available_tools() -> List[Dict[str, Any]]:
                 "query": {"type": "string", "required": True},
                 "path": {"type": "string", "default": "."},
                 "type": {"type": "string", "enum": ["content", "filename", "both"], "default": "both"}
+            }
+        },
+        {
+            "name": "http_request",
+            "description": "Make HTTP requests for external API calls (X/Twitter, etc.)",
+            "parameters": {
+                "method": {"type": "string", "default": "GET"},
+                "url": {"type": "string", "required": True},
+                "headers": {"type": "object", "default": {}},
+                "json": {"type": "object", "default": None},
+                "data": {"type": "string", "default": None},
+                "timeout": {"type": "integer", "default": 30}
             }
         }
     ]

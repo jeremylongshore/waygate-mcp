@@ -142,6 +142,43 @@
           },
           "required": ["query"]
         }
+      },
+      {
+        "name": "http_request",
+        "description": "Make HTTP requests for external API calls (X/Twitter, etc.)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "description": "HTTP method",
+              "default": "GET"
+            },
+            "url": {
+              "type": "string",
+              "description": "Request URL"
+            },
+            "headers": {
+              "type": "object",
+              "description": "Request headers",
+              "default": {}
+            },
+            "json": {
+              "type": "object",
+              "description": "JSON payload"
+            },
+            "data": {
+              "type": "string",
+              "description": "Raw data payload"
+            },
+            "timeout": {
+              "type": "integer",
+              "description": "Timeout in seconds",
+              "default": 30
+            }
+          },
+          "required": ["url"]
+        }
       }
     ],
     "prompts": [
