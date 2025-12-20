@@ -1,0 +1,287 @@
+# Semgrep Security Rules for Waygate MCP
+# Enterprise-grade static analysis configuration
+# Generated: 2025-09-29
+
+rules:
+  # ========================================
+  # OWASP TOP 10 SECURITY RULES
+  # ========================================
+
+  # A01:2021 - Broken Access Control
+  - id: hardcoded-secret-detection
+    pattern-either:
+      - pattern: |
+          $VAR = "sk_live_..."
+      - pattern: |
+          $VAR = "sk_test_..."
+      - pattern: |
+          password = "..."
+      - pattern: |
+          api_key = "..."
+      - pattern: |
+          secret = "..."
+      - pattern: |
+          token = "..."
+    message: "Hardcoded secret detected. Use environment variables or secure storage."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      owasp: "A01:2021-Broken-Access-Control"
+      cwe: "CWE-798"
+      confidence: HIGH
+
+  - id: weak-random-generation
+    pattern-either:
+      - pattern: random.random()
+      - pattern: random.randint(...)
+      - pattern: random.choice(...)
+    message: "Weak random number generation. Use secrets module for cryptographic purposes."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      owasp: "A02:2021-Cryptographic-Failures"
+      cwe: "CWE-338"
+
+  # A03:2021 - Injection
+  - id: sql-injection-risk
+    pattern-either:
+      - pattern: |
+          $CURSOR.execute("... " + $VAR + "...")
+      - pattern: |
+          $CURSOR.execute(f"...{$VAR}...")
+      - pattern: |
+          $CURSOR.execute("...%s..." % $VAR)
+    message: "SQL injection risk. Use parameterized queries."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      owasp: "A03:2021-Injection"
+      cwe: "CWE-89"
+      confidence: HIGH
+
+  - id: command-injection-risk
+    pattern-either:
+      - pattern: os.system($VAR)
+      - pattern: subprocess.call($VAR, shell=True)
+      - pattern: subprocess.run($VAR, shell=True)
+      - pattern: subprocess.Popen($VAR, shell=True)
+    message: "Command injection risk. Avoid shell=True and validate inputs."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      owasp: "A03:2021-Injection"
+      cwe: "CWE-78"
+
+  # A06:2021 - Vulnerable and Outdated Components
+  - id: dangerous-deserialization
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: marshal.loads(...)
+      - pattern: marshal.load(...)
+    message: "Dangerous deserialization. Use safe alternatives like JSON."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      owasp: "A06:2021-Vulnerable-and-Outdated-Components"
+      cwe: "CWE-502"
+
+  # A07:2021 - Identification and Authentication Failures
+  - id: weak-hash-algorithms
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    message: "Weak hash algorithm. Use SHA-256 or stronger."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      owasp: "A07:2021-Identification-and-Authentication-Failures"
+      cwe: "CWE-327"
+
+  # A09:2021 - Security Logging and Monitoring Failures
+  - id: missing-error-handling
+    pattern: |
+      try:
+        ...
+      except:
+        pass
+    message: "Empty exception handler. Log errors appropriately."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      owasp: "A09:2021-Security-Logging-and-Monitoring-Failures"
+      cwe: "CWE-778"
+
+  # ========================================
+  # WAYGATE MCP SPECIFIC RULES
+  # ========================================
+
+  - id: insecure-http-usage
+    pattern-either:
+      - pattern: requests.get("http://...")
+      - pattern: requests.post("http://...")
+      - pattern: urllib.request.urlopen("http://...")
+    message: "Insecure HTTP usage. Use HTTPS for external requests."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: "security"
+      subcategory: "transport-security"
+
+  - id: debug-mode-enabled
+    pattern-either:
+      - pattern: app.run(debug=True)
+      - pattern: app.debug = True
+      - pattern: DEBUG = True
+    message: "Debug mode enabled. Disable in production."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: "security"
+      subcategory: "configuration"
+
+  - id: unsafe-file-permissions
+    pattern-either:
+      - pattern: os.chmod($FILE, 0o777)
+      - pattern: os.chmod($FILE, 0o666)
+      - pattern: os.chmod($FILE, 0o755)
+    message: "Unsafe file permissions. Use least privilege principle."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: "security"
+      subcategory: "file-permissions"
+
+  - id: eval-usage
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: compile(..., ..., "eval")
+    message: "Dynamic code execution. Extremely dangerous - avoid eval/exec."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: "security"
+      subcategory: "code-injection"
+
+  # ========================================
+  # FLASK/FASTAPI SPECIFIC RULES
+  # ========================================
+
+  - id: flask-secret-key-weak
+    pattern: app.secret_key = "..."
+    message: "Weak Flask secret key. Use cryptographically secure random key."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: "security"
+      subcategory: "cryptography"
+
+  - id: cors-wildcard-origin
+    pattern-either:
+      - pattern: |
+          CORS(..., origins="*")
+      - pattern: |
+          @cross_origin(origins="*")
+    message: "CORS wildcard origin. Specify exact origins for security."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: "security"
+      subcategory: "cors"
+
+  # ========================================
+  # DATABASE SECURITY RULES
+  # ========================================
+
+  - id: database-credentials-hardcoded
+    pattern-either:
+      - pattern: |
+          DATABASE_URL = "sqlite:///..."
+      - pattern: |
+          conn = sqlite3.connect("...")
+    message: "Database credentials or paths hardcoded. Use environment variables."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: "security"
+      subcategory: "credentials"
+
+  # ========================================
+  # LOGGING AND MONITORING RULES
+  # ========================================
+
+  - id: sensitive-data-logging
+    pattern-either:
+      - pattern: |
+          logging.info(f"Password: {$PASSWORD}")
+      - pattern: |
+          print(f"API Key: {$API_KEY}")
+      - pattern: |
+          logger.debug(...$TOKEN...)
+    message: "Sensitive data in logs. Sanitize before logging."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: "security"
+      subcategory: "data-exposure"
+
+  # ========================================
+  # PERFORMANCE AND BEST PRACTICES
+  # ========================================
+
+  - id: inefficient-string-concatenation
+    pattern: |
+      for $VAR in $ITER:
+        $STR += $VAR
+    message: "Inefficient string concatenation. Use join() for better performance."
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: "performance"
+      subcategory: "optimization"
+
+  - id: bare-except-clause
+    pattern: |
+      except:
+        ...
+    message: "Bare except clause. Specify exception types for better error handling."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: "code-quality"
+      subcategory: "error-handling"
+
+# ========================================
+# GLOBAL CONFIGURATION
+# ========================================
+paths:
+  include:
+    - "02-src/"
+    - "source/"
+  exclude:
+    - "venv/"
+    - "node_modules/"
+    - ".git/"
+    - "__pycache__/"
+    - "99-archive/"
+    - "vendor/"
+    - "tests/"
+    - "test/"
+
+# Rule severity levels
+severity:
+  - ERROR    # Must fix before deployment
+  - WARNING  # Should fix during development
+  - INFO     # Good to know / optimization
+
+# Output configuration
+output:
+  - json     # For CI/CD integration
+  - sarif    # For GitHub Security tab
+  - text     # For human reading
+
+# Advanced configuration
+timeout: 300
+max_memory: 2048
+jobs: 4

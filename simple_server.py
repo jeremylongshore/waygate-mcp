@@ -125,7 +125,7 @@ waygate_security_active 1
         response = {"error": "Not found", "path": self.path}
         self.wfile.write(json.dumps(response).encode())
 
-def run_server(port=8000):
+def run_server(port=1455):
     server_address = ('', port)
     httpd = HTTPServer(server_address, WaygateHandler)
 

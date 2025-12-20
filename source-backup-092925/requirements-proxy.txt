@@ -1,0 +1,116 @@
+# requirements-proxy.txt
+# Enhanced requirements for Waygate MCP Proxy Gateway with security and monitoring
+
+# Core web framework and ASGI server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+uvloop==0.19.0
+httptools==0.6.1
+
+# HTTP client libraries for proxy functionality
+httpx==0.25.2
+aiohttp==3.9.1
+requests==2.31.0
+
+# Security libraries
+cryptography==41.0.8
+pyjwt==2.8.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# SSL/TLS handling
+certifi==2023.11.17
+pyopenssl==23.3.0
+
+# Network and proxy libraries
+proxy.py==2.4.3
+mitmproxy==10.1.6
+python-socks==2.4.3
+
+# Content inspection and security
+python-magic==0.4.27
+yara-python==4.5.0
+clamd==1.0.2
+pdfplumber==0.10.3
+
+# Data validation and parsing
+pydantic==2.5.0
+pydantic-settings==2.1.0
+jsonschema==4.20.0
+pyyaml==6.0.1
+toml==0.10.2
+
+# Database (enhanced for proxy operations)
+libsql-client==0.3.0
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+redis==5.0.1
+aioredis==2.0.1
+
+# Caching and performance
+aiocache==0.12.2
+cachetools==5.3.2
+
+# Monitoring and observability
+prometheus-client==0.19.0
+structlog==23.2.0
+sentry-sdk[fastapi]==1.38.0
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-httpx==0.42b0
+opentelemetry-exporter-prometheus==1.12.0rc1
+
+# Rate limiting and throttling
+slowapi==0.1.9
+limits==3.6.0
+
+# Policy engine integration
+py-opa==0.7.0
+
+# Network utilities
+netifaces==0.11.0
+psutil==5.9.6
+netaddr==0.9.0
+dnspython==2.4.2
+
+# Async utilities
+asyncio-throttle==1.0.2
+aiofiles==23.2.1
+aiolimiter==1.1.0
+
+# Testing and development (proxy-specific)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-httpx==0.26.0
+pytest-mock==3.12.0
+httpretty==1.1.4
+
+# Utility libraries
+click==8.1.7
+python-dotenv==1.0.0
+jinja2==3.1.2
+python-dateutil==2.8.2
+pytz==2023.3
+
+# MCP integration libraries
+websockets==12.0
+grpcio==1.59.3
+grpcio-tools==1.59.3
+protobuf==4.25.1
+
+# Image and document processing (for content inspection)
+pillow==10.1.0
+python-docx==1.1.0
+openpyxl==3.1.2
+
+# Geolocation and IP analysis
+geoip2==4.7.0
+maxminddb==2.2.0
+
+# Machine learning for anomaly detection (optional)
+scikit-learn==1.3.2
+numpy==1.25.2
+
+# Backup and archival
+tarfile-stream==0.1.4

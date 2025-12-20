@@ -1,0 +1,308 @@
+name: 🚀 Waygate MCP CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # ========================================
+  # SECURITY SCANNING (CRITICAL)
+  # ========================================
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for security analysis
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install security tools
+        run: |
+          pip install --upgrade bandit[toml] safety semgrep pip-audit detect-secrets cyclonedx-bom pip-licenses
+
+      - name: 🔍 Run comprehensive security scan
+        run: |
+          # Create audit reports directory
+          mkdir -p audit-reports
+
+          # Run Bandit with enhanced configuration
+          bandit -r 02-src,source -f json -o audit-reports/bandit-report.json --severity-level medium --confidence-level medium || true
+          bandit -r 02-src,source -f txt -o audit-reports/bandit-report.txt --severity-level medium --confidence-level medium || true
+          bandit -r 02-src,source -f sarif -o audit-reports/bandit-report.sarif --severity-level medium --confidence-level medium || true
+
+      - name: 🛡️ Run Safety vulnerability scan
+        run: |
+          # Run Safety with policy file
+          safety check --json --output audit-reports/safety-report.json --policy-file .safety-policy.json || true
+          safety check --output audit-reports/safety-report.txt --policy-file .safety-policy.json || true
+
+      - name: 🔐 Run pip-audit package scan
+        run: |
+          pip-audit --format=json --output=audit-reports/pip-audit.json --require requirements.txt || true
+          pip-audit --format=cyclonedx-json --output=audit-reports/pip-audit-sbom.json --require requirements.txt || true
+
+      - name: 🕵️ Run Semgrep static analysis
+        run: |
+          # Run Semgrep with custom rules
+          semgrep --config=.semgrep.yml --json --output=audit-reports/semgrep-report.json 02-src source || true
+          semgrep --config=.semgrep.yml --sarif --output=audit-reports/semgrep-report.sarif 02-src source || true
+
+      - name: 🔐 Run secret detection
+        run: |
+          # Run detect-secrets
+          detect-secrets scan --all-files --force-use-all-plugins --baseline audit-reports/secrets-baseline.json || true
+
+      - name: 📋 Generate SBOM and license report
+        run: |
+          # Generate Software Bill of Materials
+          cyclonedx-py -o audit-reports/sbom.json --format json requirements.txt || true
+
+          # Generate license report
+          pip-licenses --format=json --output-file=audit-reports/licenses.json --with-urls --with-description || true
+
+      - name: 📊 Upload comprehensive security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports-${{ github.run_number }}
+          path: |
+            audit-reports/
+          retention-days: 90
+
+      - name: 📈 Upload SARIF results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: audit-reports/
+          category: waygate-security-scan
+
+  # ========================================
+  # CODE QUALITY & TESTING
+  # ========================================
+  test:
+    name: 🧪 Test & Quality
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r source/requirements.txt
+          pip install -r source/requirements-dev.txt
+          pip install pytest pytest-cov pytest-asyncio black isort flake8 mypy
+
+      - name: 🎨 Code formatting check
+        run: |
+          black --check source/
+          isort --check-only source/
+
+      - name: 🔍 Linting
+        run: |
+          flake8 source/ --max-line-length=88 --extend-ignore=E203,W503
+
+      - name: 🏷️ Type checking
+        run: |
+          mypy source/ --ignore-missing-imports
+
+      - name: 🧪 Run tests with coverage
+        run: |
+          pytest source/ --cov=source --cov-report=xml --cov-report=html --cov-report=term
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 📈 Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-${{ matrix.python-version }}
+          path: htmlcov/
+
+  # ========================================
+  # DOCKER BUILD & SECURITY
+  # ========================================
+  docker:
+    name: 🐳 Docker Security
+    runs-on: ubuntu-latest
+    needs: [security, test]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Docker image
+        run: |
+          cd deployment
+          docker build -t waygate-mcp:test .
+
+      - name: 🔍 Scan Docker image for vulnerabilities
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --exit-code 0 --severity HIGH,CRITICAL \
+            --format json --output trivy-report.json waygate-mcp:test || true
+
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --exit-code 1 --severity CRITICAL \
+            waygate-mcp:test
+
+      - name: 📊 Upload Docker scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: docker-security-scan
+          path: trivy-report.json
+
+  # ========================================
+  # DEPLOYMENT VALIDATION
+  # ========================================
+  deploy-test:
+    name: 🚀 Deployment Test
+    runs-on: ubuntu-latest
+    needs: [security, test, docker]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Start services
+        run: |
+          cd deployment
+          docker-compose -f docker-compose.yml up -d
+          sleep 30  # Wait for services to start
+
+      - name: 🏥 Health check
+        run: |
+          # Test MCP server health
+          curl -f http://localhost:8000/health || exit 1
+
+          # Test MCP tools endpoint
+          curl -f http://localhost:8000/mcp/tools || exit 1
+
+      - name: 🧪 Integration tests
+        run: |
+          # Test MCP command execution
+          curl -X POST http://localhost:8000/mcp/execute \
+            -H "Content-Type: application/json" \
+            -d '{"action": "read_file", "params": {"path": "README.md"}}' || exit 1
+
+      - name: 🛑 Cleanup
+        if: always()
+        run: |
+          cd deployment
+          docker-compose down
+
+  # ========================================
+  # PERFORMANCE BENCHMARKS
+  # ========================================
+  benchmark:
+    name: ⚡ Performance Benchmark
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install -r source/requirements.txt
+          pip install pytest-benchmark
+
+      - name: ⚡ Run performance tests
+        run: |
+          pytest source/ -k "benchmark" --benchmark-json=benchmark.json || true
+
+      - name: 📊 Upload benchmark results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark.json
+
+  # ========================================
+  # RELEASE MANAGEMENT
+  # ========================================
+  release:
+    name: 📦 Release Management
+    runs-on: ubuntu-latest
+    needs: [security, test, docker, deploy-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 19
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================
+  # NOTIFICATIONS
+  # ========================================
+  notify:
+    name: 📢 Notifications
+    runs-on: ubuntu-latest
+    needs: [security, test, docker, deploy-test]
+    if: always()
+
+    steps:
+      - name: 📊 Workflow Summary
+        run: |
+          echo "## 🎯 Waygate MCP CI/CD Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🐳 Docker: ${{ needs.docker.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 Deploy: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.security.result }}" == "failure" ]]; then
+            echo "❌ **CRITICAL: Security scan failed!**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "📊 View detailed reports in workflow artifacts" >> $GITHUB_STEP_SUMMARY

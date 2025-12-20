@@ -1,0 +1,219 @@
+{
+  "version": "2.0",
+  "timestamp": "2025-09-29T00:00:00Z",
+  "project": "waygate-mcp",
+  "description": "Enterprise Security Policy for Waygate MCP - Dependency Vulnerability Management",
+
+  "security-requirements": {
+    "ignore-cvss-severity-below": 4.0,
+    "ignore-cvss-unknown-severity": false,
+    "ignore-unpinned-requirements": false,
+    "continue-on-vulnerability-error": false,
+    "minimum-dependency-age-days": 0
+  },
+
+  "scan-configuration": {
+    "target-files": [
+      "requirements.txt",
+      "02-src/requirements.txt",
+      "source/requirements.txt",
+      "source/requirements-dev.txt"
+    ],
+    "exclude-directories": [
+      "venv",
+      "node_modules",
+      ".git",
+      "__pycache__",
+      "99-archive",
+      "vendor"
+    ],
+    "report-format": "json",
+    "full-report": true,
+    "output-file": "safety-report.json"
+  },
+
+  "vulnerability-ignore-rules": {
+    "description": "Documented exceptions for specific vulnerabilities",
+    "rules": [
+      {
+        "vulnerability_id": "PLACEHOLDER-EXAMPLE",
+        "ignored_until": "2025-12-31",
+        "reason": "Example placeholder - remove when adding real exceptions",
+        "expires": true
+      }
+    ]
+  },
+
+  "dependency-allowlist": {
+    "description": "Approved dependencies for enterprise use",
+    "packages": [
+      "libsql-client",
+      "python-dotenv",
+      "flask",
+      "requests",
+      "json5",
+      "fastapi",
+      "uvicorn",
+      "aiohttp",
+      "pandas",
+      "matplotlib",
+      "seaborn"
+    ]
+  },
+
+  "dependency-blocklist": {
+    "description": "Prohibited dependencies due to security concerns",
+    "packages": [
+      "pickle5",
+      "dill",
+      "marshal",
+      "eval",
+      "exec"
+    ],
+    "patterns": [
+      "*insecure*",
+      "*deprecated*",
+      "*vulnerable*"
+    ]
+  },
+
+  "severity-levels": {
+    "critical": {
+      "cvss-score": "9.0-10.0",
+      "action": "immediate-fix",
+      "max-age-days": 0,
+      "block-deployment": true
+    },
+    "high": {
+      "cvss-score": "7.0-8.9",
+      "action": "urgent-fix",
+      "max-age-days": 7,
+      "block-deployment": true
+    },
+    "medium": {
+      "cvss-score": "4.0-6.9",
+      "action": "scheduled-fix",
+      "max-age-days": 30,
+      "block-deployment": false
+    },
+    "low": {
+      "cvss-score": "0.1-3.9",
+      "action": "review-and-plan",
+      "max-age-days": 90,
+      "block-deployment": false
+    }
+  },
+
+  "compliance-frameworks": {
+    "owasp-top-10": {
+      "enabled": true,
+      "version": "2021",
+      "categories": [
+        "A06:2021-Vulnerable and Outdated Components"
+      ]
+    },
+    "pci-dss": {
+      "enabled": true,
+      "requirements": [
+        "6.2-Security-patches"
+      ]
+    },
+    "iso-27001": {
+      "enabled": true,
+      "controls": [
+        "A.12.6.1-Management-of-technical-vulnerabilities"
+      ]
+    }
+  },
+
+  "notification-settings": {
+    "email-alerts": {
+      "enabled": false,
+      "recipients": [],
+      "severity-threshold": "high"
+    },
+    "slack-alerts": {
+      "enabled": false,
+      "webhook-url": "",
+      "channel": "#security-alerts",
+      "severity-threshold": "critical"
+    },
+    "github-issues": {
+      "enabled": true,
+      "create-on-severity": ["critical", "high"],
+      "label": "security-vulnerability"
+    }
+  },
+
+  "remediation-guidance": {
+    "auto-update-policy": {
+      "patch-updates": true,
+      "minor-updates": false,
+      "major-updates": false,
+      "security-updates": true
+    },
+    "manual-review-required": [
+      "major-version-updates",
+      "breaking-changes",
+      "new-dependencies"
+    ]
+  },
+
+  "audit-trail": {
+    "log-all-scans": true,
+    "retention-days": 365,
+    "include-metadata": true,
+    "track-remediation": true
+  },
+
+  "integrations": {
+    "github-security-advisories": true,
+    "nvd-database": true,
+    "snyk-database": true,
+    "ossindex": true
+  },
+
+  "advanced-features": {
+    "license-scanning": {
+      "enabled": true,
+      "approved-licenses": [
+        "MIT",
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "BSD-2-Clause",
+        "ISC"
+      ],
+      "rejected-licenses": [
+        "GPL-3.0",
+        "AGPL-3.0",
+        "SSPL-1.0"
+      ]
+    },
+    "dependency-confusion": {
+      "enabled": true,
+      "internal-package-prefixes": ["waygate-", "internal-"]
+    },
+    "supply-chain-security": {
+      "verify-signatures": true,
+      "check-maintainer-count": true,
+      "minimum-download-count": 1000
+    }
+  },
+
+  "reporting": {
+    "formats": ["json", "xml", "html", "sarif"],
+    "include-license-info": true,
+    "include-cve-details": true,
+    "include-remediation-advice": true,
+    "generate-executive-summary": true
+  },
+
+  "policy-metadata": {
+    "created-by": "Jeremy Longshore",
+    "created-date": "2025-09-29",
+    "last-updated": "2025-09-29",
+    "version": "1.0.0",
+    "approved-by": "Security Team",
+    "next-review-date": "2025-12-29"
+  }
+}

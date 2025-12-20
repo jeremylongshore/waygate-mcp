@@ -1,0 +1,23 @@
+# Development Dependencies
+-r requirements.txt
+
+# Code Quality
+black>=24.1.0
+isort>=5.13.0
+flake8>=7.0.0
+mypy>=1.8.0
+pylint>=3.0.0
+
+# Testing Extensions
+pytest-benchmark>=4.0.0
+hypothesis>=6.96.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.5.0
+mkdocstrings[python]>=0.24.0
+
+# Development Tools
+ipython>=8.20.0
+jupyterlab>=4.0.0
+pre-commit>=3.6.0

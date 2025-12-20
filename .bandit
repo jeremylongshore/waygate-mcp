@@ -1,0 +1,115 @@
+# Bandit Configuration for Waygate MCP
+# Enterprise-grade static security analysis
+# Generated: 2025-09-29
+
+[bandit]
+# Target directories for scanning
+targets = 02-src,source
+
+# Exclusion patterns - avoid scanning vendor code, tests, and virtual environments
+exclude_dirs = /tests,/test,/venv,/node_modules,/.git,/__pycache__,/vendor,/99-archive
+
+# Skip specific test IDs (use cautiously and document reasoning)
+# B101: Test for use of assert (disabled in production code paths)
+# B601: Shell injection via paramiko (if using paramiko with trusted inputs)
+skips = B101
+
+# Security level: LOW, MEDIUM, HIGH
+# Use HIGH for production security scans
+level = HIGH
+
+# Confidence level: LOW, MEDIUM, HIGH
+# Use HIGH to reduce false positives in CI/CD
+confidence = HIGH
+
+# Output formats: csv, custom, html, json, screen, txt, xml, yaml
+format = json
+
+# Number of lines of code context to display
+lines = 5
+
+# Recursively scan subdirectories
+recursive = true
+
+# Include test severity in reports
+# Tests are classified as LOW, MEDIUM, HIGH severity
+assert_used = true
+
+[bandit.plugins]
+# Enable all relevant security plugins
+# Core security checks
+B101 = true  # assert_used
+B102 = true  # exec_used
+B103 = true  # set_bad_file_permissions
+B104 = true  # hardcoded_bind_all_interfaces
+B105 = true  # hardcoded_password_string
+B106 = true  # hardcoded_password_funcarg
+B107 = true  # hardcoded_password_default
+B108 = true  # hardcoded_tmp_directory
+B110 = true  # try_except_pass
+B112 = true  # try_except_continue
+
+# SQL injection and XSS
+B201 = true  # flask_debug_true
+B301 = true  # pickle
+B302 = true  # marshal
+B303 = true  # md5
+B304 = true  # md5_insecure
+B305 = true  # cipher
+B306 = true  # mktemp_q
+B307 = true  # eval
+B308 = true  # mark_safe
+B309 = true  # httpsconnection
+B310 = true  # urllib_urlopen
+B311 = true  # random
+B312 = true  # telnetlib
+B313 = true  # xml_bad_cElementTree
+B314 = true  # xml_bad_ElementTree
+B315 = true  # xml_bad_expatreader
+B316 = true  # xml_bad_expatbuilder
+B317 = true  # xml_bad_sax
+B318 = true  # xml_bad_minidom
+B319 = true  # xml_bad_pulldom
+B320 = true  # xml_bad_etree
+
+# Shell injection and command execution
+B601 = true  # paramiko_calls
+B602 = true  # subprocess_popen_with_shell_equals_true
+B603 = true  # subprocess_without_shell_equals_true
+B604 = true  # any_other_function_with_shell_equals_true
+B605 = true  # start_process_with_a_shell
+B606 = true  # start_process_with_no_shell
+B607 = true  # start_process_with_partial_path
+
+# File system security
+B701 = true  # jinja2_autoescape_false
+B702 = true  # use_of_mako_templates
+B703 = true  # django_mark_safe
+
+[bandit.formatters]
+# Custom output formatting options
+csv.delimiter = ","
+csv.quotechar = "\""
+json.indent = 2
+json.sort_keys = true
+
+[bandit.severity]
+# Map test IDs to severity levels
+# Critical security issues that must be fixed
+critical = B102,B201,B307,B602,B603,B604,B605
+
+# High severity issues requiring immediate attention
+high = B103,B105,B106,B107,B108,B301,B302,B303,B304,B305,B308,B310,B601,B606,B607
+
+# Medium severity issues for security review
+medium = B104,B110,B112,B306,B309,B311,B312,B313,B314,B315,B316,B317,B318,B319,B320,B701,B702,B703
+
+# Low severity informational issues
+low = B101
+
+# Experimental checks (use with caution)
+experimental = false
+
+[bandit.blacklist_calls]
+# Dangerous function calls to flag
+bad_name_sets = pickle,marshal,eval,exec,execfile,compile,input,file

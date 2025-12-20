@@ -39,7 +39,18 @@
 ✅ **Graceful Fallbacks**: Continues operation when subsystems fail
 ✅ **Comprehensive Audit**: 7-year retention, complete request logging
 
-## 🚀 Quick Start
+## ⚡ 60-Second Quickstart
+
+```bash
+# Clone and start in 60 seconds
+git clone https://github.com/waygateai/waygate-mcp.git && cd waygate-mcp
+./quickstart.sh  # Automated setup + start
+curl http://localhost:8000/health  # Verify running
+```
+
+That's it! Waygate MCP is running with all security features enabled.
+
+## 🚀 Detailed Setup
 
 ### 1. Complete MCP Server (Recommended - v2.1.0)
 ```bash

@@ -76,3 +76,211 @@ waygate.pid
 tmp/
 temp/
 *.tmp
+
+# ===========================================
+# 🔒 SECURITY: NEVER COMMIT THESE FILES
+# ===========================================
+
+# API Keys and Secrets
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+.secrets/
+secrets/
+private/
+confidential/
+
+# Authentication tokens
+*token*
+*auth*
+*jwt*
+*oauth*
+*credential*
+*password*
+*passwd*
+*secret*
+access_token
+refresh_token
+api_key
+private_key
+
+# Cloud credentials
+.aws/
+.gcp/
+.azure/
+gcloud/
+aws-credentials
+azure-credentials
+service-account*.json
+*-service-account.json
+
+# SSH and GPG keys
+id_rsa*
+id_ed25519*
+*.gpg
+*.pgp
+known_hosts
+authorized_keys
+
+# Database credentials and backups
+database.env
+db.env
+*.sql.gz
+*.dump
+*.backup.sql
+
+# Configuration with secrets
+config.production.*
+.env.production
+.env.staging
+.env.secrets
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# X/Twitter API credentials
+x_credentials.json
+twitter_auth.json
+oauth_tokens.json
+
+# Container secrets
+docker/secrets/
+k8s/secrets/
+kubernetes/secrets/
+
+# Certificate authorities
+ca-key.pem
+ca.pem
+cert.pem
+key.pem
+
+# ===========================================
+# 🚫 ENTERPRISE COMPLIANCE EXCLUSIONS
+# ===========================================
+
+# Legal and compliance
+*.legal
+compliance/
+audit/
+gdpr/
+hipaa/
+sox/
+
+# Financial data
+financial/
+billing/
+revenue/
+*.xlsx
+*.xls
+
+# Personal data
+pii/
+personal/
+customer-data/
+user-data/
+
+# ===========================================
+# 🏗️ BUILD AND DEPLOYMENT EXCLUSIONS
+# ===========================================
+
+# CI/CD artifacts
+.github/secrets/
+.gitlab-ci-secrets/
+jenkins/secrets/
+deployment/secrets/
+
+# Docker secrets
+docker-secrets/
+.docker-secrets/
+
+# Kubernetes secrets
+*-secret.yaml
+*-secret.yml
+secrets.yaml
+secrets.yml
+
+# Terraform state (may contain secrets)
+terraform.tfstate*
+*.tfvars
+.terraform/
+terraform.tfplan
+
+# ===========================================
+# 📊 MONITORING AND ANALYTICS EXCLUSIONS
+# ===========================================
+
+# Performance data
+perf/
+performance/
+*.perf
+profiling/
+
+# Analytics and metrics
+analytics/
+metrics/
+stats/
+tracking/
+
+# ===========================================
+# 🔧 DEVELOPMENT TOOL EXCLUSIONS
+# ===========================================
+
+# Editor backups
+*~
+.#*
+\#*#
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store?
+._*
+
+# ===========================================
+# ⚠️  WAYGATE MCP SPECIFIC SECURITY
+# ===========================================
+
+# MCP credentials
+mcp_credentials/
+.mcp_secrets/
+mcp-config.private.json
+
+# OAuth tokens for X/Twitter
+X_OAUTH*
+TWITTER_*
+x_auth_*
+twitter_auth_*
+
+# Database connection strings
+DATABASE_URL*
+DB_CONNECTION*
+TURSO_*
+
+# Production configurations
+waygate.prod.*
+config.prod.*
+production.env
+
+# Backup files with potential secrets
+*.env.backup
+*.config.backup
+*-backup.json
+
+# ===========================================
+# 📝 DOCUMENTATION: SECURITY PATTERNS
+# ===========================================
+
+# Any file ending with these patterns is suspicious:
+# *secret*, *key*, *token*, *auth*, *credential*
+# *password*, *passwd*, *private*, *confidential*
+#
+# If you need to commit configuration examples:
+# Use .env.example, config.example.json, etc.
+#
+# For emergency secret rotation, check:
+# git log --all --grep="password\|secret\|key\|token" --oneline

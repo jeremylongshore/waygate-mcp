@@ -1,0 +1,31 @@
+# CODEOWNERS file for waygate-mcp
+# This file defines individuals or teams responsible for code in this repository.
+
+# Default owners for everything in the repository
+* @jeremylongshore
+
+# Core source code - requires security review
+source/ @jeremylongshore
+02-src/ @jeremylongshore
+
+# Security and deployment configurations
+deployment/ @jeremylongshore
+.github/ @jeremylongshore
+SECURITY.md @jeremylongshore
+
+# Documentation - broader review acceptable
+*.md @jeremylongshore
+01-docs/ @jeremylongshore
+documentation/ @jeremylongshore
+
+# Configuration files
+*.yml @jeremylongshore
+*.yaml @jeremylongshore
+*.json @jeremylongshore
+
+# Scripts and automation
+*.sh @jeremylongshore
+scripts/ @jeremylongshore
+
+# License and legal
+LICENSE @jeremylongshore
