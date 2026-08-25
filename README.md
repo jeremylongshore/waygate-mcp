@@ -5,6 +5,8 @@
 [![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-Ready-purple.svg)](https://claude.ai/desktop)
 [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](#security-features)
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/U5S225PTME)
+
 🚀 **Production-Ready MCP Server**: Complete tool suite with enterprise security, TaskWarrior integration, and seamless Claude Desktop compatibility
 
 ## v2.1.0 "Complete Arsenal" Release (September 2025)
