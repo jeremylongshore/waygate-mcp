@@ -12,7 +12,7 @@ async def test_x_twitter_api():
     """Test X/Twitter API with the Bearer token"""
 
     # Get the Bearer token
-    bearer_token = os.getenv("X_BEARER_TOKEN", "ZllRajY2eVVGSDBtR1JqMEFxa1VzV3NCVlN1NkF3OGpSV0hDY1hDMlVGbmoxOjE3NTkwMjI0ODIwOTI6MTowOmF0OjE")
+    bearer_token = os.environ["X_BEARER_TOKEN"]
 
     # Test 1: Verify credentials (check if token is valid)
     print("=== Testing X/Twitter API Authentication ===")
@@ -51,7 +51,7 @@ async def test_x_twitter_api():
 
 async def test_tweet_posting():
     """Test posting a tweet"""
-    bearer_token = os.getenv("X_BEARER_TOKEN", "ZllRajY2eVVGSDBtR1JqMEFxa1VzV3NCVlN1NkF3OGpSV0hDY1hDMlVGbmoxOjE3NTkwMjI0ODIwOTI6MTowOmF0OjE")
+    bearer_token = os.environ["X_BEARER_TOKEN"]
 
     headers = {
         "Authorization": f"Bearer {bearer_token}",
@@ -92,7 +92,7 @@ async def test_tweet_posting():
 
 def analyze_token_format():
     """Analyze the token format to understand the issue"""
-    bearer_token = os.getenv("X_BEARER_TOKEN", "ZllRajY2eVVGSDBtR1JqMEFxa1VzV3NCVlN1NkF3OGpSV0hDY1hDMlVGbmoxOjE3NTkwMjI0ODIwOTI6MTowOmF0OjE")
+    bearer_token = os.environ["X_BEARER_TOKEN"]
 
     print(f"\n=== Token Analysis ===")
     print(f"Token length: {len(bearer_token)}")
