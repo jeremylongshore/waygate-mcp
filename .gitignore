@@ -284,3 +284,7 @@ production.env
 #
 # For emergency secret rotation, check:
 # git log --all --grep="password\|secret\|key\|token" --oneline
+# Never track env backups (a real one was committed 2026-01-07, removed 2026-09-06)
+.env.backup*
+.env.*.bak
+.env.bak*
