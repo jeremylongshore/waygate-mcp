@@ -33,7 +33,7 @@ aiosqlite==0.19.0
 # MCP Server Integrations
 # Google Cloud services (Firebase, BigQuery)
 google-cloud-firestore==2.13.1
-google-cloud-functions==1.15.4
+google-cloud-functions==1.15.0
 google-cloud-bigquery==3.13.0
 google-auth==2.23.4
 
