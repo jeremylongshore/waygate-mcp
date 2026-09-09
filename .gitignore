@@ -288,3 +288,8 @@ production.env
 .env.backup*
 .env.*.bak
 .env.bak*
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+.beads/proxieddb/
