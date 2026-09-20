@@ -1,3 +1,27 @@
+# Release v2.2.0
+
+**Release Date**: 2026-09-20
+
+## Changes since v2.1.0
+
+- chore: release v2.2.0 [skip ci] (d1415bc)
+- ci: move actions off the node20 runtime, and make release.yml load again (#4) (57b35d6)
+- feat(skills): publish safety-first Waygate MCP skill (#3) (d144c2f)
+- fix(secrets): stop tracking the committed .env backup and ignore the pattern (#1) (697dcfe)
+- chore(funding): add Ko-fi alongside the existing funding sources (59607e5)
+- docs(readme): add the Ko-fi support badge (0471158)
+- chore: update FUNDING.yml with GitHub Sponsors + Buy Me a Coffee (9a87924)
+- chore: update FUNDING.yml with GitHub Sponsors + Buy Me a Coffee (131a385)
+- chore: add GitHub Sponsors funding button (bb476f6)
+- Update to proprietary license - All Rights Reserved (cfd73fb)
+- docs: add Beads upgrade note (whats-new + hooks) (2b457a7)
+- chore: add Beads (bd) workflow + ignore beads source clone (c6f0c5f)
+- feat: Add HTTP request MCP tool and fix slash command execution (3d4070f)
+- chore: enable automatic releases on every push (4e3dafe)
+- chore: add global release workflow (82a252d)
+
+---
+
 # Changelog
 
 All notable changes to the Waygate MCP project will be documented in this file.
