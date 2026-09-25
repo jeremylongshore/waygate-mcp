@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime
 
+
 class ExampleTools:
     """
     Simple example tools that anyone can understand and modify.
@@ -20,7 +21,9 @@ class ExampleTools:
     # ============================================
     # EXAMPLE 1: Simple Note Taking
     # ============================================
-    async def save_note(self, title: str, content: str, tags: List[str] = None) -> Dict[str, Any]:
+    async def save_note(
+        self, title: str, content: str, tags: List[str] = None
+    ) -> Dict[str, Any]:
         """
         Save a note with optional tags.
 
@@ -32,18 +35,18 @@ class ExampleTools:
             "title": title,
             "content": content,
             "tags": tags or [],
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
         # Save to file (simple JSON storage)
         filename = f"{self.data_dir}/note_{note['id'].replace(':', '-')}.json"
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(note, f, indent=2)
 
         return {
             "success": True,
             "message": f"Note '{title}' saved successfully",
-            "note_id": note['id']
+            "note_id": note["id"],
         }
 
     # ============================================
@@ -63,7 +66,7 @@ class ExampleTools:
         # Load existing todos
         todos = []
         if os.path.exists(todos_file):
-            with open(todos_file, 'r') as f:
+            with open(todos_file, "r") as f:
                 todos = json.load(f)
 
         # Add new todo
@@ -72,18 +75,18 @@ class ExampleTools:
             "task": task,
             "priority": priority,
             "completed": False,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
         todos.append(new_todo)
 
         # Save back to file
-        with open(todos_file, 'w') as f:
+        with open(todos_file, "w") as f:
             json.dump(todos, f, indent=2)
 
         return {
             "success": True,
             "message": f"Added todo: {task}",
-            "todo_id": new_todo['id']
+            "todo_id": new_todo["id"],
         }
 
     # ============================================
@@ -102,23 +105,19 @@ class ExampleTools:
             "wifi password": "Check with IT department",
             "lunch menu": "Available in the cafeteria daily",
             "emergency contact": "Call 911 or security at ext. 5555",
-            "printer location": "3rd floor, near conference room B"
+            "printer location": "3rd floor, near conference room B",
         }
 
         # Simple search
         query_lower = query.lower()
         for key, value in knowledge_base.items():
             if query_lower in key.lower():
-                return {
-                    "success": True,
-                    "query": query,
-                    "result": value
-                }
+                return {"success": True, "query": query, "result": value}
 
         return {
             "success": False,
             "query": query,
-            "message": "No information found. Try different keywords."
+            "message": "No information found. Try different keywords.",
         }
 
     # ============================================
@@ -137,21 +136,11 @@ class ExampleTools:
             allowed_chars = "0123456789+-*/.() "
             if all(c in allowed_chars for c in expression):
                 result = eval(expression)
-                return {
-                    "success": True,
-                    "expression": expression,
-                    "result": result
-                }
+                return {"success": True, "expression": expression, "result": result}
             else:
-                return {
-                    "success": False,
-                    "error": "Invalid characters in expression"
-                }
+                return {"success": False, "error": "Invalid characters in expression"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Calculation error: {str(e)}"
-            }
+            return {"success": False, "error": f"Calculation error: {str(e)}"}
 
     # ============================================
     # EXAMPLE 5: Simple Reminder System
@@ -168,7 +157,7 @@ class ExampleTools:
         # Load existing reminders
         reminders = []
         if os.path.exists(reminders_file):
-            with open(reminders_file, 'r') as f:
+            with open(reminders_file, "r") as f:
                 reminders = json.load(f)
 
         # Add new reminder
@@ -177,24 +166,26 @@ class ExampleTools:
             "message": message,
             "time": time,
             "created_at": datetime.now().isoformat(),
-            "triggered": False
+            "triggered": False,
         }
         reminders.append(new_reminder)
 
         # Save back to file
-        with open(reminders_file, 'w') as f:
+        with open(reminders_file, "w") as f:
             json.dump(reminders, f, indent=2)
 
         return {
             "success": True,
             "message": f"Reminder set for {time}: {message}",
-            "reminder_id": new_reminder['id']
+            "reminder_id": new_reminder["id"],
         }
 
     # ============================================
     # TEMPLATE: Create Your Own Tool
     # ============================================
-    async def my_custom_tool(self, param1: str, param2: str = "default") -> Dict[str, Any]:
+    async def my_custom_tool(
+        self, param1: str, param2: str = "default"
+    ) -> Dict[str, Any]:
         """
         TEMPLATE: Copy this function and modify for your needs.
 
@@ -216,7 +207,7 @@ class ExampleTools:
             "success": True,
             "message": "Your custom tool executed",
             "result": result,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
 

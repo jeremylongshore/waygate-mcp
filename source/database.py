@@ -12,7 +12,20 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import libsql_client
-from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Text, Boolean, DateTime, JSON, Float
+from sqlalchemy import (
+    create_engine,
+    text,
+    MetaData,
+    Table,
+    Column,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    DateTime,
+    JSON,
+    Float,
+)
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.dialects.sqlite import insert
@@ -21,6 +34,7 @@ from contextlib import asynccontextmanager
 logger = logging.getLogger("waygate_mcp.database")
 
 Base = declarative_base()
+
 
 class DatabaseConfig:
     """Database configuration and connection management"""
@@ -38,10 +52,14 @@ class DatabaseConfig:
         if not db_url:
             logger.error("❌ DATABASE_URL environment variable is required")
             logger.info("📋 Setup Instructions:")
-            logger.info("1. Install Turso CLI: curl -sSfL https://get.tur.so/install.sh | bash")
+            logger.info(
+                "1. Install Turso CLI: curl -sSfL https://get.tur.so/install.sh | bash"
+            )
             logger.info("2. Create database: turso db create waygate-mcp")
             logger.info("3. Get auth token: turso db tokens create waygate-mcp")
-            logger.info("4. Set DATABASE_URL=libsql://your-db.turso.io?authToken=your-token")
+            logger.info(
+                "4. Set DATABASE_URL=libsql://your-db.turso.io?authToken=your-token"
+            )
             raise ValueError("DATABASE_URL is required")
 
         return db_url
@@ -63,7 +81,9 @@ class DatabaseConfig:
                     self.database_url = "sqlite:///./waygate.db"
 
                 self.engine = create_async_engine(self.database_url, echo=False)
-                self.session_maker = async_sessionmaker(self.engine, class_=AsyncSession)
+                self.session_maker = async_sessionmaker(
+                    self.engine, class_=AsyncSession
+                )
                 logger.info("✅ Connected to SQLite database")
 
             # Create tables
@@ -93,7 +113,6 @@ class DatabaseConfig:
                 updated_by TEXT
             )
             """,
-
             # API Keys table
             """
             CREATE TABLE IF NOT EXISTS api_keys (
@@ -114,7 +133,6 @@ class DatabaseConfig:
                 revoke_reason TEXT
             )
             """,
-
             # Plugins table
             """
             CREATE TABLE IF NOT EXISTS plugins (
@@ -138,7 +156,6 @@ class DatabaseConfig:
                 error_count INTEGER DEFAULT 0
             )
             """,
-
             # Command History table
             """
             CREATE TABLE IF NOT EXISTS command_history (
@@ -160,7 +177,6 @@ class DatabaseConfig:
                 FOREIGN KEY (plugin_id) REFERENCES plugins(id)
             )
             """,
-
             # Metrics table
             """
             CREATE TABLE IF NOT EXISTS metrics (
@@ -173,7 +189,6 @@ class DatabaseConfig:
                 CHECK (metric_value >= 0 OR metric_type = 'gauge')
             )
             """,
-
             # System Events table
             """
             CREATE TABLE IF NOT EXISTS system_events (
@@ -187,7 +202,6 @@ class DatabaseConfig:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """,
-
             # MCP Servers table
             """
             CREATE TABLE IF NOT EXISTS mcp_servers (
@@ -210,7 +224,7 @@ class DatabaseConfig:
                 created_by TEXT,
                 updated_by TEXT
             )
-            """
+            """,
         ]
 
         # Create indexes
@@ -229,7 +243,7 @@ class DatabaseConfig:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_servers_name ON mcp_servers(name)",
             "CREATE INDEX IF NOT EXISTS idx_mcp_servers_type ON mcp_servers(server_type)",
             "CREATE INDEX IF NOT EXISTS idx_mcp_servers_status ON mcp_servers(status)",
-            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_updated ON mcp_servers(updated_at)"
+            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_updated ON mcp_servers(updated_at)",
         ]
 
         try:
@@ -253,11 +267,16 @@ class DatabaseConfig:
     async def _insert_default_config(self):
         """Insert default configuration values"""
         default_configs = [
-            ('max_request_size', '10485760', 'integer', 'Maximum request size in bytes'),
-            ('rate_limit_enabled', 'true', 'boolean', 'Enable rate limiting'),
-            ('default_timeout', '30', 'integer', 'Default command timeout in seconds'),
-            ('waygate_version', '2.0.0', 'string', 'Waygate MCP version'),
-            ('max_connections', '100', 'integer', 'Maximum concurrent connections')
+            (
+                "max_request_size",
+                "10485760",
+                "integer",
+                "Maximum request size in bytes",
+            ),
+            ("rate_limit_enabled", "true", "boolean", "Enable rate limiting"),
+            ("default_timeout", "30", "integer", "Default command timeout in seconds"),
+            ("waygate_version", "2.0.0", "string", "Waygate MCP version"),
+            ("max_connections", "100", "integer", "Maximum concurrent connections"),
         ]
 
         try:
@@ -265,13 +284,20 @@ class DatabaseConfig:
                 if self.is_turso:
                     self.client.execute(
                         "INSERT OR IGNORE INTO config (key, value, type, description) VALUES (?, ?, ?, ?)",
-                        [key, value, type_val, desc]
+                        [key, value, type_val, desc],
                     )
                 else:
                     async with self.session_maker() as session:
                         result = await session.execute(
-                            text("INSERT OR IGNORE INTO config (key, value, type, description) VALUES (:key, :value, :type, :desc)"),
-                            {"key": key, "value": value, "type": type_val, "desc": desc}
+                            text(
+                                "INSERT OR IGNORE INTO config (key, value, type, description) VALUES (:key, :value, :type, :desc)"
+                            ),
+                            {
+                                "key": key,
+                                "value": value,
+                                "type": type_val,
+                                "desc": desc,
+                            },
                         )
                         await session.commit()
 
@@ -279,6 +305,7 @@ class DatabaseConfig:
 
         except Exception as e:
             logger.warning(f"⚠️ Could not insert default config: {e}")
+
 
 class DatabaseManager:
     """Main database manager for Waygate MCP"""
@@ -290,17 +317,22 @@ class DatabaseManager:
         """Initialize the database"""
         await self.config.initialize()
 
-    async def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict]:
+    async def execute_query(
+        self, query: str, params: Optional[Dict] = None
+    ) -> List[Dict]:
         """Execute a query and return results"""
         try:
             if self.config.is_turso:
                 if params:
-                    result = self.config.client.execute(query, list(params.values()) if isinstance(params, dict) else params)
+                    result = self.config.client.execute(
+                        query,
+                        list(params.values()) if isinstance(params, dict) else params,
+                    )
                 else:
                     result = self.config.client.execute(query)
 
                 # Convert to list of dicts
-                if hasattr(result, 'rows') and hasattr(result, 'columns'):
+                if hasattr(result, "rows") and hasattr(result, "columns"):
                     return [dict(zip(result.columns, row)) for row in result.rows]
                 return []
 
@@ -318,8 +350,14 @@ class DatabaseManager:
             logger.error(f"❌ Query execution failed: {e}")
             raise
 
-    async def log_command(self, command_id: str, command: str, params: Dict = None,
-                         api_key_id: int = None, plugin_id: int = None):
+    async def log_command(
+        self,
+        command_id: str,
+        command: str,
+        params: Dict = None,
+        api_key_id: int = None,
+        plugin_id: int = None,
+    ):
         """Log a command execution"""
         try:
             query = """
@@ -328,11 +366,16 @@ class DatabaseManager:
             """
 
             if self.config.is_turso:
-                self.config.client.execute(query, [
-                    command_id, command,
-                    json.dumps(params) if params else None,
-                    api_key_id, plugin_id
-                ])
+                self.config.client.execute(
+                    query,
+                    [
+                        command_id,
+                        command,
+                        json.dumps(params) if params else None,
+                        api_key_id,
+                        plugin_id,
+                    ],
+                )
             else:
                 await self.execute_query(
                     "INSERT INTO command_history (command_id, command, params, status, api_key_id, plugin_id) "
@@ -342,8 +385,8 @@ class DatabaseManager:
                         "command": command,
                         "params": json.dumps(params) if params else None,
                         "api_key_id": api_key_id,
-                        "plugin_id": plugin_id
-                    }
+                        "plugin_id": plugin_id,
+                    },
                 )
 
             logger.debug(f"📝 Logged command: {command_id}")
@@ -351,8 +394,14 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"❌ Failed to log command: {e}")
 
-    async def update_command_status(self, command_id: str, status: str,
-                                   result: Dict = None, error: str = None, duration_ms: int = None):
+    async def update_command_status(
+        self,
+        command_id: str,
+        status: str,
+        result: Dict = None,
+        error: str = None,
+        duration_ms: int = None,
+    ):
         """Update command execution status"""
         try:
             query = """
@@ -362,13 +411,16 @@ class DatabaseManager:
             """
 
             if self.config.is_turso:
-                self.config.client.execute(query, [
-                    status,
-                    json.dumps(result) if result else None,
-                    error,
-                    duration_ms,
-                    command_id
-                ])
+                self.config.client.execute(
+                    query,
+                    [
+                        status,
+                        json.dumps(result) if result else None,
+                        error,
+                        duration_ms,
+                        command_id,
+                    ],
+                )
             else:
                 await self.execute_query(
                     "UPDATE command_history SET status = :status, result = :result, "
@@ -379,8 +431,8 @@ class DatabaseManager:
                         "result": json.dumps(result) if result else None,
                         "error": error,
                         "duration_ms": duration_ms,
-                        "command_id": command_id
-                    }
+                        "command_id": command_id,
+                    },
                 )
 
             logger.debug(f"📝 Updated command {command_id}: {status}")
@@ -388,7 +440,9 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"❌ Failed to update command status: {e}")
 
-    async def record_metric(self, name: str, value: float, metric_type: str = "gauge", tags: Dict = None):
+    async def record_metric(
+        self, name: str, value: float, metric_type: str = "gauge", tags: Dict = None
+    ):
         """Record a metric"""
         try:
             query = """
@@ -397,10 +451,10 @@ class DatabaseManager:
             """
 
             if self.config.is_turso:
-                self.config.client.execute(query, [
-                    name, value, metric_type,
-                    json.dumps(tags) if tags else '{}'
-                ])
+                self.config.client.execute(
+                    query,
+                    [name, value, metric_type, json.dumps(tags) if tags else "{}"],
+                )
             else:
                 await self.execute_query(
                     "INSERT INTO metrics (metric_name, metric_value, metric_type, tags) "
@@ -409,8 +463,8 @@ class DatabaseManager:
                         "name": name,
                         "value": value,
                         "type": metric_type,
-                        "tags": json.dumps(tags) if tags else '{}'
-                    }
+                        "tags": json.dumps(tags) if tags else "{}",
+                    },
                 )
 
         except Exception as e:
@@ -426,7 +480,7 @@ class DatabaseManager:
                 "database": "healthy",
                 "type": "turso" if self.config.is_turso else "sqlite",
                 "config_entries": result[0]["count"] if result else 0,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -434,11 +488,13 @@ class DatabaseManager:
             return {
                 "database": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
+
 
 # Global database manager instance
 db_manager = DatabaseManager()
+
 
 # Async context manager for database operations
 @asynccontextmanager
@@ -453,13 +509,21 @@ async def get_db():
         # Cleanup if needed
         pass
 
+
 # Helper functions for common operations
 async def init_database():
     """Initialize database (called at startup)"""
     await db_manager.initialize()
 
-async def log_system_event(event_type: str, event_name: str, description: str = None,
-                          severity: str = "info", source: str = None, context: Dict = None):
+
+async def log_system_event(
+    event_type: str,
+    event_name: str,
+    description: str = None,
+    severity: str = "info",
+    source: str = None,
+    context: Dict = None,
+):
     """Log a system event"""
     try:
         query = """
@@ -468,10 +532,17 @@ async def log_system_event(event_type: str, event_name: str, description: str = 
         """
 
         if db_manager.config.is_turso:
-            db_manager.config.client.execute(query, [
-                event_type, event_name, description, severity, source,
-                json.dumps(context) if context else '{}'
-            ])
+            db_manager.config.client.execute(
+                query,
+                [
+                    event_type,
+                    event_name,
+                    description,
+                    severity,
+                    source,
+                    json.dumps(context) if context else "{}",
+                ],
+            )
         else:
             await db_manager.execute_query(
                 "INSERT INTO system_events (event_type, event_name, description, severity, source, context) "
@@ -482,8 +553,8 @@ async def log_system_event(event_type: str, event_name: str, description: str = 
                     "description": description,
                     "severity": severity,
                     "source": source,
-                    "context": json.dumps(context) if context else '{}'
-                }
+                    "context": json.dumps(context) if context else "{}",
+                },
             )
 
         logger.info(f"📝 System event logged: {event_type}.{event_name}")
@@ -491,15 +562,22 @@ async def log_system_event(event_type: str, event_name: str, description: str = 
     except Exception as e:
         logger.error(f"❌ Failed to log system event: {e}")
 
+
 # Import required for JSON handling
 import json
 
+
 # MCP Server Management Functions
-async def register_mcp_server(name: str, server_type: str, display_name: str,
-                             description: str = None, config: Dict[str, Any] = None,
-                             credentials: Dict[str, Any] = None,
-                             communication_method: str = "stdio",
-                             created_by: str = "system") -> bool:
+async def register_mcp_server(
+    name: str,
+    server_type: str,
+    display_name: str,
+    description: str = None,
+    config: Dict[str, Any] = None,
+    credentials: Dict[str, Any] = None,
+    communication_method: str = "stdio",
+    created_by: str = "system",
+) -> bool:
     """
     Register a new MCP server configuration
 
@@ -525,12 +603,20 @@ async def register_mcp_server(name: str, server_type: str, display_name: str,
         """
 
         if db_manager.config.is_turso:
-            db_manager.config.client.execute(query, [
-                name, server_type, display_name, description,
-                json.dumps(config or {}),
-                json.dumps(credentials or {}),
-                communication_method, created_by, created_by
-            ])
+            db_manager.config.client.execute(
+                query,
+                [
+                    name,
+                    server_type,
+                    display_name,
+                    description,
+                    json.dumps(config or {}),
+                    json.dumps(credentials or {}),
+                    communication_method,
+                    created_by,
+                    created_by,
+                ],
+            )
         else:
             await db_manager.execute_query(
                 "INSERT OR REPLACE INTO mcp_servers "
@@ -547,8 +633,8 @@ async def register_mcp_server(name: str, server_type: str, display_name: str,
                     "credentials": json.dumps(credentials or {}),
                     "communication_method": communication_method,
                     "created_by": created_by,
-                    "updated_by": created_by
-                }
+                    "updated_by": created_by,
+                },
             )
 
         logger.info(f"📝 MCP server registered: {name} ({server_type})")
@@ -557,6 +643,7 @@ async def register_mcp_server(name: str, server_type: str, display_name: str,
     except Exception as e:
         logger.error(f"❌ Failed to register MCP server {name}: {e}")
         return False
+
 
 async def get_mcp_server(name: str) -> Optional[Dict[str, Any]]:
     """
@@ -570,8 +657,7 @@ async def get_mcp_server(name: str) -> Optional[Dict[str, Any]]:
     """
     try:
         result = await db_manager.execute_query(
-            "SELECT * FROM mcp_servers WHERE name = ?",
-            [name]
+            "SELECT * FROM mcp_servers WHERE name = ?", [name]
         )
 
         if result:
@@ -586,6 +672,7 @@ async def get_mcp_server(name: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"❌ Failed to get MCP server {name}: {e}")
         return None
+
 
 async def list_mcp_servers(status: str = None) -> List[Dict[str, Any]]:
     """
@@ -620,8 +707,10 @@ async def list_mcp_servers(status: str = None) -> List[Dict[str, Any]]:
         logger.error(f"❌ Failed to list MCP servers: {e}")
         return []
 
-async def update_mcp_server_status(name: str, status: str, error_message: str = None,
-                                  tool_count: int = None) -> bool:
+
+async def update_mcp_server_status(
+    name: str, status: str, error_message: str = None, tool_count: int = None
+) -> bool:
     """
     Update MCP server status
 
@@ -667,6 +756,7 @@ async def update_mcp_server_status(name: str, status: str, error_message: str = 
         logger.error(f"❌ Failed to update MCP server status: {e}")
         return False
 
+
 async def delete_mcp_server(name: str) -> bool:
     """
     Delete MCP server configuration
@@ -680,13 +770,11 @@ async def delete_mcp_server(name: str) -> bool:
     try:
         if db_manager.config.is_turso:
             db_manager.config.client.execute(
-                "DELETE FROM mcp_servers WHERE name = ?",
-                [name]
+                "DELETE FROM mcp_servers WHERE name = ?", [name]
             )
         else:
             await db_manager.execute_query(
-                "DELETE FROM mcp_servers WHERE name = ?",
-                [name]
+                "DELETE FROM mcp_servers WHERE name = ?", [name]
             )
 
         logger.info(f"🗑️ MCP server deleted: {name}")
@@ -695,6 +783,7 @@ async def delete_mcp_server(name: str) -> bool:
     except Exception as e:
         logger.error(f"❌ Failed to delete MCP server {name}: {e}")
         return False
+
 
 async def initialize_default_mcp_servers():
     """Initialize default MCP server configurations"""
@@ -707,10 +796,10 @@ async def initialize_default_mcp_servers():
             "config": {
                 "project_id": "diagnostic-pro-start-up",
                 "region": "us-central1",
-                "features": ["auth", "firestore", "functions", "hosting"]
+                "features": ["auth", "firestore", "functions", "hosting"],
             },
             "credentials": {},
-            "communication_method": "stdio"
+            "communication_method": "stdio",
         },
         {
             "name": "bigquery_mcp",
@@ -720,10 +809,10 @@ async def initialize_default_mcp_servers():
             "config": {
                 "project_id": "diagnostic-pro-start-up",
                 "dataset": "diagnosticpro_prod",
-                "region": "us-central1"
+                "region": "us-central1",
             },
             "credentials": {},
-            "communication_method": "python"
+            "communication_method": "python",
         },
         {
             "name": "github_mcp",
@@ -732,47 +821,38 @@ async def initialize_default_mcp_servers():
             "description": "Official GitHub MCP server integration",
             "config": {
                 "owner": "jeremylongshore",
-                "repositories": ["waygate-mcp", "diagnostic-platform"]
+                "repositories": ["waygate-mcp", "diagnostic-platform"],
             },
             "credentials": {},
-            "communication_method": "stdio"
+            "communication_method": "stdio",
         },
         {
             "name": "n8n_mcp",
             "server_type": "n8n",
             "display_name": "n8n Workflow MCP Server",
             "description": "n8n workflow automation MCP server (525+ nodes)",
-            "config": {
-                "api_url": "https://n8n.yourdomain.com",
-                "node_count": 525
-            },
+            "config": {"api_url": "https://n8n.yourdomain.com", "node_count": 525},
             "credentials": {},
-            "communication_method": "http"
+            "communication_method": "http",
         },
         {
             "name": "docker_hub_mcp",
             "server_type": "docker_hub",
             "display_name": "Docker Hub MCP Server",
             "description": "Official Docker Hub MCP server integration",
-            "config": {
-                "registry": "hub.docker.com",
-                "organization": "your-org"
-            },
+            "config": {"registry": "hub.docker.com", "organization": "your-org"},
             "credentials": {},
-            "communication_method": "subprocess"
+            "communication_method": "subprocess",
         },
         {
             "name": "slack_mcp",
             "server_type": "slack",
             "display_name": "Slack MCP Server",
             "description": "Slack MCP server for Bob's Brain integration",
-            "config": {
-                "workspace": "intent-solutions",
-                "bot_name": "bobs-brain"
-            },
+            "config": {"workspace": "intent-solutions", "bot_name": "bobs-brain"},
             "credentials": {},
-            "communication_method": "http"
-        }
+            "communication_method": "http",
+        },
     ]
 
     try:

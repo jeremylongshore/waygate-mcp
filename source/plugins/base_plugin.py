@@ -5,6 +5,7 @@ Base Plugin Class - Inherit from this to create your own plugins
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 
+
 class BasePlugin(ABC):
     """
     Simple base class for creating MCP plugins.
@@ -41,7 +42,9 @@ class BasePlugin(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute a tool from this plugin.
 
@@ -61,5 +64,5 @@ class BasePlugin(ABC):
         return {
             "name": self.name,
             "version": self.version,
-            "description": self.description
+            "description": self.description,
         }

@@ -16,9 +16,12 @@ from .base_plugin import BasePlugin
 
 logger = logging.getLogger("waygate_mcp.mcp_bridge")
 
+
 class MCPCommunicationError(Exception):
     """Exception raised when MCP communication fails"""
+
     pass
+
 
 class MCPBridgePlugin(BasePlugin):
     """
@@ -51,7 +54,7 @@ class MCPBridgePlugin(BasePlugin):
             "last_sync": None,
             "tool_count": 0,
             "error_count": 0,
-            "last_error": None
+            "last_error": None,
         }
 
     @abstractmethod
@@ -92,8 +95,10 @@ class MCPBridgePlugin(BasePlugin):
             self.mcp_status["connected"] = True
             self.mcp_status["last_sync"] = datetime.now(timezone.utc)
 
-            logger.info(f"✅ MCP bridge initialized: {self.name} "
-                       f"({len(self.mcp_tools)} tools available)")
+            logger.info(
+                f"✅ MCP bridge initialized: {self.name} "
+                f"({len(self.mcp_tools)} tools available)"
+            )
 
         except Exception as e:
             error_msg = f"MCP bridge initialization failed: {e}"
@@ -124,7 +129,9 @@ class MCPBridgePlugin(BasePlugin):
             elif method == "subprocess":
                 await self._initialize_subprocess_client()
             else:
-                raise MCPCommunicationError(f"Unsupported communication method: {method}")
+                raise MCPCommunicationError(
+                    f"Unsupported communication method: {method}"
+                )
 
         except Exception as e:
             logger.error(f"❌ MCP client initialization failed: {e}")
@@ -142,14 +149,16 @@ class MCPBridgePlugin(BasePlugin):
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=await self._get_mcp_env()
+            env=await self._get_mcp_env(),
         )
 
         # Verify process started successfully
         await asyncio.sleep(1)  # Give process time to start
         if self.process.returncode is not None:
             stderr_output = await self.process.stderr.read()
-            raise MCPCommunicationError(f"MCP server process failed to start: {stderr_output.decode()}")
+            raise MCPCommunicationError(
+                f"MCP server process failed to start: {stderr_output.decode()}"
+            )
 
         logger.debug("✅ MCP server process started successfully")
 
@@ -162,9 +171,7 @@ class MCPBridgePlugin(BasePlugin):
             raise MCPCommunicationError("base_url required for HTTP communication")
 
         self.mcp_client = httpx.AsyncClient(
-            base_url=base_url,
-            headers=await self._get_http_headers(),
-            timeout=30.0
+            base_url=base_url, headers=await self._get_http_headers(), timeout=30.0
         )
 
         # Test connection
@@ -183,6 +190,7 @@ class MCPBridgePlugin(BasePlugin):
 
         try:
             import importlib
+
             self.mcp_client = importlib.import_module(module_name)
             logger.debug(f"✅ Python module loaded: {module_name}")
         except ImportError as e:
@@ -206,7 +214,9 @@ class MCPBridgePlugin(BasePlugin):
 
         return self.mcp_tools
 
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute a tool through the MCP bridge
 
@@ -218,10 +228,7 @@ class MCPBridgePlugin(BasePlugin):
             Tool execution result
         """
         if not self.is_initialized:
-            return {
-                "success": False,
-                "error": "MCP bridge not initialized"
-            }
+            return {"success": False, "error": "MCP bridge not initialized"}
 
         try:
             logger.debug(f"🔧 Executing MCP tool: {tool_name}")
@@ -236,7 +243,9 @@ class MCPBridgePlugin(BasePlugin):
             elif self.communication_method == "subprocess":
                 result = await self._execute_subprocess_tool(tool_name, parameters)
             else:
-                raise MCPCommunicationError(f"Unsupported communication method: {self.communication_method}")
+                raise MCPCommunicationError(
+                    f"Unsupported communication method: {self.communication_method}"
+                )
 
             logger.debug(f"✅ MCP tool executed successfully: {tool_name}")
             return result
@@ -251,10 +260,12 @@ class MCPBridgePlugin(BasePlugin):
                 "success": False,
                 "error": error_msg,
                 "tool": tool_name,
-                "parameters": parameters
+                "parameters": parameters,
             }
 
-    async def _execute_stdio_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_stdio_tool(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute tool via stdio communication"""
         if not self.process or self.process.returncode is not None:
             raise MCPCommunicationError("MCP server process not running")
@@ -264,10 +275,7 @@ class MCPBridgePlugin(BasePlugin):
             "jsonrpc": "2.0",
             "id": f"waygate_{int(datetime.now().timestamp())}",
             "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": parameters
-            }
+            "params": {"name": tool_name, "arguments": parameters},
         }
 
         # Send message to MCP server
@@ -285,30 +293,27 @@ class MCPBridgePlugin(BasePlugin):
         return {
             "success": True,
             "result": response.get("result", {}),
-            "tool": tool_name
+            "tool": tool_name,
         }
 
-    async def _execute_http_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_http_tool(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute tool via HTTP API"""
         if not self.mcp_client:
             raise MCPCommunicationError("HTTP MCP client not initialized")
 
-        payload = {
-            "tool": tool_name,
-            "parameters": parameters
-        }
+        payload = {"tool": tool_name, "parameters": parameters}
 
         response = await self.mcp_client.post("/tools/execute", json=payload)
         response.raise_for_status()
 
         result = response.json()
-        return {
-            "success": True,
-            "result": result,
-            "tool": tool_name
-        }
+        return {"success": True, "result": result, "tool": tool_name}
 
-    async def _execute_python_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_python_tool(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute tool via direct Python call"""
         if not self.mcp_client:
             raise MCPCommunicationError("Python MCP client not initialized")
@@ -316,17 +321,19 @@ class MCPBridgePlugin(BasePlugin):
         # Call the function directly
         if hasattr(self.mcp_client, tool_name):
             func = getattr(self.mcp_client, tool_name)
-            result = await func(**parameters) if asyncio.iscoroutinefunction(func) else func(**parameters)
+            result = (
+                await func(**parameters)
+                if asyncio.iscoroutinefunction(func)
+                else func(**parameters)
+            )
 
-            return {
-                "success": True,
-                "result": result,
-                "tool": tool_name
-            }
+            return {"success": True, "result": result, "tool": tool_name}
         else:
             raise MCPCommunicationError(f"Tool not found in Python module: {tool_name}")
 
-    async def _execute_subprocess_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_subprocess_tool(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute tool via subprocess call"""
         command = await self.get_mcp_server_command()
         command.extend(["--tool", tool_name])
@@ -340,24 +347,22 @@ class MCPBridgePlugin(BasePlugin):
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=await self._get_mcp_env()
+            env=await self._get_mcp_env(),
         )
 
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            raise MCPCommunicationError(f"Subprocess execution failed: {stderr.decode()}")
+            raise MCPCommunicationError(
+                f"Subprocess execution failed: {stderr.decode()}"
+            )
 
         try:
             result = json.loads(stdout.decode())
         except json.JSONDecodeError:
             result = {"output": stdout.decode()}
 
-        return {
-            "success": True,
-            "result": result,
-            "tool": tool_name
-        }
+        return {"success": True, "result": result, "tool": tool_name}
 
     async def _sync_mcp_tools(self):
         """Sync tools from external MCP server"""
@@ -388,11 +393,7 @@ class MCPBridgePlugin(BasePlugin):
             return []
 
         # Send tools/list request
-        message = {
-            "jsonrpc": "2.0",
-            "id": "waygate_tools_list",
-            "method": "tools/list"
-        }
+        message = {"jsonrpc": "2.0", "id": "waygate_tools_list", "method": "tools/list"}
 
         message_json = json.dumps(message) + "\n"
         self.process.stdin.write(message_json.encode())
@@ -423,19 +424,19 @@ class MCPBridgePlugin(BasePlugin):
         else:
             # Inspect module for available functions
             import inspect
+
             functions = inspect.getmembers(self.mcp_client, inspect.isfunction)
             tools = []
 
             for name, func in functions:
                 if not name.startswith("_"):
-                    tools.append({
-                        "name": name,
-                        "description": func.__doc__ or f"{name} function",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {}
+                    tools.append(
+                        {
+                            "name": name,
+                            "description": func.__doc__ or f"{name} function",
+                            "inputSchema": {"type": "object", "properties": {}},
                         }
-                    })
+                    )
 
             return tools
 
@@ -448,7 +449,7 @@ class MCPBridgePlugin(BasePlugin):
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=await self._get_mcp_env()
+            env=await self._get_mcp_env(),
         )
 
         stdout, stderr = await process.communicate()
@@ -472,6 +473,7 @@ class MCPBridgePlugin(BasePlugin):
     async def _get_mcp_env(self) -> Dict[str, str]:
         """Get environment variables for MCP server process"""
         import os
+
         env = os.environ.copy()
 
         # Add credentials as environment variables
@@ -533,10 +535,12 @@ class MCPBridgePlugin(BasePlugin):
     def get_info(self) -> Dict[str, str]:
         """Get MCP bridge plugin information"""
         base_info = super().get_info()
-        base_info.update({
-            "communication_method": self.communication_method,
-            "mcp_status": self.mcp_status,
-            "tool_count": len(self.mcp_tools),
-            "is_initialized": self.is_initialized
-        })
+        base_info.update(
+            {
+                "communication_method": self.communication_method,
+                "mcp_status": self.mcp_status,
+                "tool_count": len(self.mcp_tools),
+                "is_initialized": self.is_initialized,
+            }
+        )
         return base_info

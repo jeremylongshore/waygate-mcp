@@ -23,6 +23,7 @@ from .exceptions import MCPToolError
 # Import X/Twitter integrations
 try:
     from .x_twitter_integration import X_TWITTER_TOOLS, get_x_twitter_tools
+
     X_TWITTER_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"X/Twitter OAuth 2.0 integration not available: {e}")
@@ -32,6 +33,7 @@ except ImportError as e:
 # Import X/Twitter OAuth 1.0a integration
 try:
     from .x_twitter_oauth1a import X_TWITTER_OAUTH1A_TOOLS, get_x_twitter_oauth1a_tools
+
     X_TWITTER_OAUTH1A_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"X/Twitter OAuth 1.0a integration not available: {e}")
@@ -50,7 +52,7 @@ class MCPToolsHandler:
             self.base_path / "waygate-mcp",
             self.base_path / "projects",
             Path("/tmp"),
-            Path("/var/tmp")
+            Path("/var/tmp"),
         ]
 
     def _validate_path(self, path_str: str) -> Path:
@@ -74,8 +76,17 @@ class MCPToolsHandler:
     def _validate_command(self, command: str) -> str:
         """Validate command for security"""
         dangerous_commands = [
-            'rm -rf', 'sudo', 'chmod 777', 'mkfs', 'dd if=',
-            'curl', 'wget', 'nc ', 'netcat', '>/dev/', 'format'
+            "rm -rf",
+            "sudo",
+            "chmod 777",
+            "mkfs",
+            "dd if=",
+            "curl",
+            "wget",
+            "nc ",
+            "netcat",
+            ">/dev/",
+            "format",
         ]
 
         command_lower = command.lower()
@@ -104,13 +115,12 @@ class MCPToolsHandler:
                 validated_command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.base_path
+                cwd=self.base_path,
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout
+                    process.communicate(), timeout=timeout
                 )
             except asyncio.TimeoutError:
                 process.kill()
@@ -118,10 +128,10 @@ class MCPToolsHandler:
 
             return {
                 "success": True,
-                "stdout": stdout.decode('utf-8', errors='replace'),
-                "stderr": stderr.decode('utf-8', errors='replace'),
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
                 "return_code": process.returncode,
-                "command": validated_command
+                "command": validated_command,
             }
 
         except MCPToolError:
@@ -163,7 +173,7 @@ class MCPToolsHandler:
                 "content": content,
                 "path": str(file_path),
                 "size": file_size,
-                "encoding": encoding
+                "encoding": encoding,
             }
 
         except MCPToolError:
@@ -205,7 +215,7 @@ class MCPToolsHandler:
                 "success": True,
                 "path": str(file_path),
                 "size": content_size,
-                "encoding": encoding
+                "encoding": encoding,
             }
 
         except MCPToolError:
@@ -251,7 +261,7 @@ class MCPToolsHandler:
                 "entries": entries,
                 "count": len(entries),
                 "recursive": recursive,
-                "pattern": pattern
+                "pattern": pattern,
             }
 
         except MCPToolError:
@@ -276,7 +286,9 @@ class MCPToolsHandler:
             if not base_path.exists():
                 raise MCPToolError(f"Search path does not exist: {base_path}")
 
-            logger.info(f"Searching files: query='{query}', path='{base_path}', type='{search_type}'")
+            logger.info(
+                f"Searching files: query='{query}', path='{base_path}', type='{search_type}'"
+            )
 
             results = []
 
@@ -292,9 +304,14 @@ class MCPToolsHandler:
                             match_type.append("filename")
 
                     # Search content (only for text files under 1MB)
-                    if search_type in ["content", "both"] and file_path.stat().st_size < 1024 * 1024:
+                    if (
+                        search_type in ["content", "both"]
+                        and file_path.stat().st_size < 1024 * 1024
+                    ):
                         try:
-                            content = file_path.read_text(encoding='utf-8', errors='ignore')
+                            content = file_path.read_text(
+                                encoding="utf-8", errors="ignore"
+                            )
                             if query.lower() in content.lower():
                                 match_found = True
                                 match_type.append("content")
@@ -312,7 +329,7 @@ class MCPToolsHandler:
                 "search_path": str(base_path),
                 "search_type": search_type,
                 "results": results,
-                "count": len(results)
+                "count": len(results),
             }
 
         except MCPToolError:
@@ -346,6 +363,7 @@ class MCPToolsHandler:
                 if use_oauth1a or True:  # Always try OAuth 1.0a first for Twitter
                     try:
                         from .x_oauth1a_auth import get_x_oauth1a
+
                         oauth1a = get_x_oauth1a()
 
                         # Generate OAuth 1.0a headers
@@ -355,10 +373,14 @@ class MCPToolsHandler:
                         if data and isinstance(data, dict):
                             request_params.update(data)
 
-                        oauth_headers = oauth1a.get_auth_headers(method, url, request_params)
+                        oauth_headers = oauth1a.get_auth_headers(
+                            method, url, request_params
+                        )
                         headers.update(oauth_headers)
                         auth_added = True
-                        logger.info(f"Added OAuth 1.0a authentication for X/Twitter API")
+                        logger.info(
+                            f"Added OAuth 1.0a authentication for X/Twitter API"
+                        )
                     except Exception as e:
                         logger.warning(f"OAuth 1.0a not available: {e}")
 
@@ -368,7 +390,9 @@ class MCPToolsHandler:
                     if oauth2_token:
                         headers["Authorization"] = f"Bearer {oauth2_token}"
                         auth_added = True
-                        logger.info("Using OAuth 2.0 Bearer token for X/Twitter API (expires every 2 hours)")
+                        logger.info(
+                            "Using OAuth 2.0 Bearer token for X/Twitter API (expires every 2 hours)"
+                        )
                     else:
                         logger.warning("No X/Twitter authentication available")
 
@@ -376,6 +400,7 @@ class MCPToolsHandler:
             elif use_oauth1a:
                 try:
                     from .x_oauth1a_auth import get_x_oauth1a
+
                     oauth1a = get_x_oauth1a()
 
                     # Generate OAuth 1.0a headers
@@ -385,7 +410,9 @@ class MCPToolsHandler:
                     if data and isinstance(data, dict):
                         request_params.update(data)
 
-                    oauth_headers = oauth1a.get_auth_headers(method, url, request_params)
+                    oauth_headers = oauth1a.get_auth_headers(
+                        method, url, request_params
+                    )
                     headers.update(oauth_headers)
 
                     logger.info(f"Added OAuth 1.0a authentication for {method} {url}")
@@ -395,13 +422,11 @@ class MCPToolsHandler:
 
             logger.info(f"Making HTTP {method} request to: {url}")
 
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as session:
                 async with session.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    json=json_data,
-                    data=data
+                    method=method, url=url, headers=headers, json=json_data, data=data
                 ) as response:
                     response_text = await response.text()
 
@@ -418,7 +443,7 @@ class MCPToolsHandler:
                         "data": response_data,
                         "url": url,
                         "method": method,
-                        "oauth1a_used": use_oauth1a
+                        "oauth1a_used": use_oauth1a,
                     }
 
         except MCPToolError:
@@ -441,15 +466,16 @@ class MCPToolsHandler:
                 "type": "directory" if path.is_dir() else "file",
                 "size": stat.st_size,
                 "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                "permissions": oct(stat.st_mode)[-3:]
+                "permissions": oct(stat.st_mode)[-3:],
             }
         except Exception:
             return {
                 "name": path.name,
                 "path": str(path),
                 "type": "unknown",
-                "error": "Could not get file info"
+                "error": "Could not get file info",
             }
+
 
 # Global tools handler instance
 tools_handler = MCPToolsHandler()
@@ -461,7 +487,7 @@ TOOL_REGISTRY = {
     "write_file": tools_handler.write_file,
     "list_directory": tools_handler.list_directory,
     "search_files": tools_handler.search_files,
-    "http_request": tools_handler.http_request
+    "http_request": tools_handler.http_request,
 }
 
 # Add X/Twitter tools if available
@@ -472,12 +498,15 @@ if X_TWITTER_AVAILABLE:
 if X_TWITTER_OAUTH1A_AVAILABLE:
     TOOL_REGISTRY.update(X_TWITTER_OAUTH1A_TOOLS)
 
+
 async def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a specific MCP tool"""
     try:
         if tool_name not in TOOL_REGISTRY:
             available_tools = list(TOOL_REGISTRY.keys())
-            raise MCPToolError(f"Unknown tool: {tool_name}. Available tools: {available_tools}")
+            raise MCPToolError(
+                f"Unknown tool: {tool_name}. Available tools: {available_tools}"
+            )
 
         tool_func = TOOL_REGISTRY[tool_name]
         result = await tool_func(parameters)
@@ -486,7 +515,7 @@ async def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, 
             "tool": tool_name,
             "status": "success",
             "result": result,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except MCPToolError as e:
@@ -495,7 +524,7 @@ async def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, 
             "tool": tool_name,
             "status": "error",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         logger.error(f"Unexpected tool error: {tool_name} - {str(e)}")
@@ -503,8 +532,9 @@ async def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, 
             "tool": tool_name,
             "status": "error",
             "error": f"Unexpected error: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
+
 
 def get_available_tools() -> List[Dict[str, Any]]:
     """Get list of available tools with their schemas"""
@@ -514,16 +544,16 @@ def get_available_tools() -> List[Dict[str, Any]]:
             "description": "Execute system commands with safety validation",
             "parameters": {
                 "command": {"type": "string", "required": True},
-                "timeout": {"type": "integer", "default": 30}
-            }
+                "timeout": {"type": "integer", "default": 30},
+            },
         },
         {
             "name": "read_file",
             "description": "Read file contents with safety validation",
             "parameters": {
                 "path": {"type": "string", "required": True},
-                "encoding": {"type": "string", "default": "utf-8"}
-            }
+                "encoding": {"type": "string", "default": "utf-8"},
+            },
         },
         {
             "name": "write_file",
@@ -531,8 +561,8 @@ def get_available_tools() -> List[Dict[str, Any]]:
             "parameters": {
                 "path": {"type": "string", "required": True},
                 "content": {"type": "string", "required": True},
-                "encoding": {"type": "string", "default": "utf-8"}
-            }
+                "encoding": {"type": "string", "default": "utf-8"},
+            },
         },
         {
             "name": "list_directory",
@@ -540,8 +570,8 @@ def get_available_tools() -> List[Dict[str, Any]]:
             "parameters": {
                 "path": {"type": "string", "required": True},
                 "recursive": {"type": "boolean", "default": False},
-                "pattern": {"type": "string", "default": "*"}
-            }
+                "pattern": {"type": "string", "default": "*"},
+            },
         },
         {
             "name": "search_files",
@@ -549,8 +579,12 @@ def get_available_tools() -> List[Dict[str, Any]]:
             "parameters": {
                 "query": {"type": "string", "required": True},
                 "path": {"type": "string", "default": "."},
-                "type": {"type": "string", "enum": ["content", "filename", "both"], "default": "both"}
-            }
+                "type": {
+                    "type": "string",
+                    "enum": ["content", "filename", "both"],
+                    "default": "both",
+                },
+            },
         },
         {
             "name": "http_request",
@@ -562,9 +596,13 @@ def get_available_tools() -> List[Dict[str, Any]]:
                 "json": {"type": "object", "default": None},
                 "data": {"type": "string", "default": None},
                 "timeout": {"type": "integer", "default": 30},
-                "use_oauth1a": {"type": "boolean", "default": False, "description": "Use OAuth 1.0a authentication for X/Twitter API"}
-            }
-        }
+                "use_oauth1a": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Use OAuth 1.0a authentication for X/Twitter API",
+                },
+            },
+        },
     ]
 
     # Add X/Twitter tools if available
