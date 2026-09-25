@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 import os
 import json
 
+
 class GitHubPlugin(BasePlugin):
     """
     Simple GitHub integration for non-technical users.
@@ -17,7 +18,9 @@ class GitHubPlugin(BasePlugin):
         super().__init__()
         self.name = "GitHub Integration"
         self.version = "1.0.0"
-        self.description = "Easy GitHub operations - create repos, manage issues, and more"
+        self.description = (
+            "Easy GitHub operations - create repos, manage issues, and more"
+        )
 
     async def get_tools(self) -> List[Dict[str, Any]]:
         """
@@ -30,8 +33,8 @@ class GitHubPlugin(BasePlugin):
                 "parameters": {
                     "repo_name": "string - Name of your repository",
                     "description": "string - What your repo is about",
-                    "private": "boolean - Make it private? (default: false)"
-                }
+                    "private": "boolean - Make it private? (default: false)",
+                },
             },
             {
                 "name": "create_issue",
@@ -39,13 +42,13 @@ class GitHubPlugin(BasePlugin):
                 "parameters": {
                     "repo": "string - Repository name",
                     "title": "string - Issue title",
-                    "body": "string - Issue description"
-                }
+                    "body": "string - Issue description",
+                },
             },
             {
                 "name": "list_my_repos",
                 "description": "List all your GitHub repositories",
-                "parameters": {}
+                "parameters": {},
             },
             {
                 "name": "create_readme",
@@ -54,12 +57,14 @@ class GitHubPlugin(BasePlugin):
                     "project_name": "string - Your project name",
                     "description": "string - What your project does",
                     "installation": "string - How to install/use",
-                    "author": "string - Your name"
-                }
-            }
+                    "author": "string - Your name",
+                },
+            },
         ]
 
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute GitHub operations.
         """
@@ -91,21 +96,21 @@ class GitHubPlugin(BasePlugin):
                 "description": description,
                 "private": private,
                 "default_branch": "main",
-                "created_at": "2024-01-15T12:00:00Z"
+                "created_at": "2024-01-15T12:00:00Z",
             },
             "instructions": [
                 f"1. Go to https://github.com/new",
                 f"2. Enter repository name: {repo_name}",
                 f"3. Add description: {description}",
                 f"4. Set visibility: {'Private' if private else 'Public'}",
-                "5. Click 'Create repository'"
-            ]
+                "5. Click 'Create repository'",
+            ],
         }
 
         return {
             "success": True,
             "message": f"Repository template created for '{repo_name}'",
-            "data": template
+            "data": template,
         }
 
     async def create_issue(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -122,7 +127,7 @@ class GitHubPlugin(BasePlugin):
                 "title": title,
                 "body": body,
                 "labels": [],
-                "assignees": []
+                "assignees": [],
             },
             "markdown": f"""## {title}
 
@@ -130,13 +135,13 @@ class GitHubPlugin(BasePlugin):
 
 ---
 *Created with Waygate MCP*
-"""
+""",
         }
 
         return {
             "success": True,
             "message": f"Issue template created: '{title}'",
-            "data": issue_template
+            "data": issue_template,
         }
 
     async def list_repos(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -147,14 +152,14 @@ class GitHubPlugin(BasePlugin):
         example_repos = [
             {"name": "waygate-mcp", "stars": 42, "language": "Python"},
             {"name": "my-website", "stars": 5, "language": "HTML"},
-            {"name": "awesome-project", "stars": 128, "language": "JavaScript"}
+            {"name": "awesome-project", "stars": 128, "language": "JavaScript"},
         ]
 
         return {
             "success": True,
             "message": "Repository list retrieved",
             "repositories": example_repos,
-            "total": len(example_repos)
+            "total": len(example_repos),
         }
 
     async def create_readme(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -224,14 +229,14 @@ Give a ⭐️ if this project helped you!
         # Save to file
         readme_path = "/app/data/README_template.md"
         os.makedirs(os.path.dirname(readme_path), exist_ok=True)
-        with open(readme_path, 'w') as f:
+        with open(readme_path, "w") as f:
             f.write(readme_content)
 
         return {
             "success": True,
             "message": f"README.md created for '{project_name}'",
             "content": readme_content,
-            "saved_to": readme_path
+            "saved_to": readme_path,
         }
 
 

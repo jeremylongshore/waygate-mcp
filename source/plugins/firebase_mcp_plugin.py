@@ -13,6 +13,7 @@ from .mcp_bridge_plugin import MCPBridgePlugin
 
 logger = logging.getLogger("waygate_mcp.firebase_mcp")
 
+
 class FirebaseMCPPlugin(MCPBridgePlugin):
     """
     Firebase MCP Server integration for Waygate MCP
@@ -40,7 +41,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         self.mcp_config = {
             "communication_method": "stdio",
             "server_type": "firebase",
-            "credentials": {}
+            "credentials": {},
         }
 
     async def get_mcp_server_command(self) -> List[str]:
@@ -51,12 +52,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             Command to execute Firebase CLI in MCP mode
         """
         # Firebase CLI MCP server command (experimental feature)
-        return [
-            "npx",
-            "firebase-tools@beta",
-            "--experimental",
-            "mcp"
-        ]
+        return ["npx", "firebase-tools@beta", "--experimental", "mcp"]
 
     async def get_mcp_server_config(self) -> Dict[str, Any]:
         """
@@ -75,8 +71,8 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 "functions",
                 "hosting",
                 "storage",
-                "realtime-database"
-            ]
+                "realtime-database",
+            ],
         }
 
     async def initialize(self):
@@ -89,7 +85,9 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         # Initialize parent MCP bridge
         await super().initialize()
 
-        logger.info(f"✅ Firebase MCP plugin initialized with {len(self.mcp_tools)} tools")
+        logger.info(
+            f"✅ Firebase MCP plugin initialized with {len(self.mcp_tools)} tools"
+        )
 
     async def _load_firebase_credentials(self):
         """Load Firebase credentials from environment"""
@@ -99,13 +97,15 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             service_account = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
             if not project_id:
-                logger.warning("⚠️ FIREBASE_PROJECT_ID not set, using default: diagnostic-pro-start-up")
+                logger.warning(
+                    "⚠️ FIREBASE_PROJECT_ID not set, using default: diagnostic-pro-start-up"
+                )
                 project_id = "diagnostic-pro-start-up"
 
             self.credentials = {
                 "FIREBASE_PROJECT_ID": project_id,
                 "GOOGLE_APPLICATION_CREDENTIALS": service_account,
-                "FIREBASE_REGION": os.getenv("FIREBASE_REGION", "us-central1")
+                "FIREBASE_REGION": os.getenv("FIREBASE_REGION", "us-central1"),
             }
 
             # Update MCP config with credentials
@@ -135,23 +135,33 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
 
             # Add DiagnosticPro-specific context and usage examples
             if tool["name"] == "firebase_auth_list_users":
-                enhanced_tool["description"] += " | DiagnosticPro: List customer accounts"
+                enhanced_tool[
+                    "description"
+                ] += " | DiagnosticPro: List customer accounts"
                 enhanced_tool["use_case"] = "diagnosticpro_user_management"
 
             elif tool["name"] == "firebase_firestore_get":
-                enhanced_tool["description"] += " | DiagnosticPro: Get diagnostic submissions"
+                enhanced_tool[
+                    "description"
+                ] += " | DiagnosticPro: Get diagnostic submissions"
                 enhanced_tool["use_case"] = "diagnosticpro_data_retrieval"
 
             elif tool["name"] == "firebase_firestore_set":
-                enhanced_tool["description"] += " | DiagnosticPro: Store diagnostic results"
+                enhanced_tool[
+                    "description"
+                ] += " | DiagnosticPro: Store diagnostic results"
                 enhanced_tool["use_case"] = "diagnosticpro_data_storage"
 
             elif tool["name"] == "firebase_functions_deploy":
-                enhanced_tool["description"] += " | DiagnosticPro: Deploy diagnostic AI functions"
+                enhanced_tool[
+                    "description"
+                ] += " | DiagnosticPro: Deploy diagnostic AI functions"
                 enhanced_tool["use_case"] = "diagnosticpro_deployment"
 
             elif tool["name"] == "firebase_hosting_deploy":
-                enhanced_tool["description"] += " | DiagnosticPro: Deploy customer platform"
+                enhanced_tool[
+                    "description"
+                ] += " | DiagnosticPro: Deploy customer platform"
                 enhanced_tool["use_case"] = "diagnosticpro_hosting"
 
             # Add tool category for organization
@@ -184,11 +194,11 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                     "properties": {
                         "submission_id": {
                             "type": "string",
-                            "description": "Diagnostic submission ID"
+                            "description": "Diagnostic submission ID",
                         }
                     },
-                    "required": ["submission_id"]
-                }
+                    "required": ["submission_id"],
+                },
             },
             {
                 "name": "diagnosticpro_create_order",
@@ -200,23 +210,27 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                     "properties": {
                         "customer_email": {
                             "type": "string",
-                            "description": "Customer email address"
+                            "description": "Customer email address",
                         },
                         "equipment_type": {
                             "type": "string",
-                            "description": "Type of equipment being diagnosed"
+                            "description": "Type of equipment being diagnosed",
                         },
                         "issue_description": {
                             "type": "string",
-                            "description": "Description of the issue"
+                            "description": "Description of the issue",
                         },
                         "payment_intent_id": {
                             "type": "string",
-                            "description": "Stripe payment intent ID"
-                        }
+                            "description": "Stripe payment intent ID",
+                        },
                     },
-                    "required": ["customer_email", "equipment_type", "issue_description"]
-                }
+                    "required": [
+                        "customer_email",
+                        "equipment_type",
+                        "issue_description",
+                    ],
+                },
             },
             {
                 "name": "diagnosticpro_get_analytics",
@@ -229,15 +243,15 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                         "date_range": {
                             "type": "string",
                             "description": "Date range for analytics (7d, 30d, 90d)",
-                            "default": "7d"
+                            "default": "7d",
                         },
                         "metric": {
                             "type": "string",
                             "description": "Metric to retrieve (orders, revenue, users)",
-                            "default": "orders"
-                        }
-                    }
-                }
+                            "default": "orders",
+                        },
+                    },
+                },
             },
             {
                 "name": "diagnosticpro_deploy_functions",
@@ -249,20 +263,22 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                     "properties": {
                         "function_name": {
                             "type": "string",
-                            "description": "Name of function to deploy (or 'all' for all functions)"
+                            "description": "Name of function to deploy (or 'all' for all functions)",
                         },
                         "environment": {
                             "type": "string",
                             "description": "Target environment (staging, production)",
-                            "default": "staging"
-                        }
+                            "default": "staging",
+                        },
                     },
-                    "required": ["function_name"]
-                }
-            }
+                    "required": ["function_name"],
+                },
+            },
         ]
 
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute Firebase tool with DiagnosticPro-specific handling
 
@@ -288,7 +304,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 result["context"] = {
                     "platform": "diagnosticpro",
                     "project_id": self.credentials.get("FIREBASE_PROJECT_ID"),
-                    "tool_category": "firebase"
+                    "tool_category": "firebase",
                 }
 
             return result
@@ -299,10 +315,12 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 "success": False,
                 "error": str(e),
                 "tool": tool_name,
-                "context": "firebase_mcp_plugin"
+                "context": "firebase_mcp_plugin",
             }
 
-    async def _execute_diagnosticpro_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_diagnosticpro_tool(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute DiagnosticPro-specific Firebase tools
 
@@ -328,32 +346,34 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         else:
             return {
                 "success": False,
-                "error": f"Unknown DiagnosticPro tool: {tool_name}"
+                "error": f"Unknown DiagnosticPro tool: {tool_name}",
             }
 
     async def _get_diagnostic_submission(self, submission_id: str) -> Dict[str, Any]:
         """Get a diagnostic submission from Firestore"""
         # Use Firebase MCP to get document from Firestore
-        result = await super().execute("firebase_firestore_get", {
-            "collection": "diagnosticSubmissions",
-            "document": submission_id
-        })
+        result = await super().execute(
+            "firebase_firestore_get",
+            {"collection": "diagnosticSubmissions", "document": submission_id},
+        )
 
         if result.get("success"):
             return {
                 "success": True,
                 "submission": result["result"],
                 "submission_id": submission_id,
-                "context": "diagnosticpro_platform"
+                "context": "diagnosticpro_platform",
             }
         else:
             return {
                 "success": False,
                 "error": f"Failed to get diagnostic submission: {submission_id}",
-                "submission_id": submission_id
+                "submission_id": submission_id,
             }
 
-    async def _create_diagnostic_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_diagnostic_order(
+        self, order_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Create a new diagnostic order in Firestore"""
         import uuid
         from datetime import datetime
@@ -370,28 +390,27 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             "paymentIntentId": order_data.get("payment_intent_id"),
             "status": "pending",
             "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat()
+            "updatedAt": datetime.utcnow().isoformat(),
         }
 
         # Use Firebase MCP to create document in Firestore
-        result = await super().execute("firebase_firestore_set", {
-            "collection": "orders",
-            "document": order_id,
-            "data": order_doc
-        })
+        result = await super().execute(
+            "firebase_firestore_set",
+            {"collection": "orders", "document": order_id, "data": order_doc},
+        )
 
         if result.get("success"):
             return {
                 "success": True,
                 "order_id": order_id,
                 "order": order_doc,
-                "context": "diagnosticpro_platform"
+                "context": "diagnosticpro_platform",
             }
         else:
             return {
                 "success": False,
                 "error": "Failed to create diagnostic order",
-                "order_data": order_data
+                "order_data": order_data,
             }
 
     async def _get_platform_analytics(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -400,15 +419,15 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         metric = params.get("metric", "orders")
 
         # Use Firebase MCP to query analytics collection
-        result = await super().execute("firebase_firestore_query", {
-            "collection": "analytics",
-            "where": [
-                ["metric", "==", metric],
-                ["dateRange", "==", date_range]
-            ],
-            "orderBy": [["timestamp", "desc"]],
-            "limit": 1
-        })
+        result = await super().execute(
+            "firebase_firestore_query",
+            {
+                "collection": "analytics",
+                "where": [["metric", "==", metric], ["dateRange", "==", date_range]],
+                "orderBy": [["timestamp", "desc"]],
+                "limit": 1,
+            },
+        )
 
         if result.get("success"):
             analytics_data = result["result"]
@@ -417,17 +436,19 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 "analytics": analytics_data,
                 "metric": metric,
                 "date_range": date_range,
-                "context": "diagnosticpro_analytics"
+                "context": "diagnosticpro_analytics",
             }
         else:
             return {
                 "success": False,
                 "error": f"Failed to get analytics for metric: {metric}",
                 "metric": metric,
-                "date_range": date_range
+                "date_range": date_range,
             }
 
-    async def _deploy_diagnostic_functions(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def _deploy_diagnostic_functions(
+        self, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Deploy DiagnosticPro Cloud Functions"""
         function_name = params["function_name"]
         environment = params.get("environment", "staging")
@@ -438,19 +459,21 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             "generate_report": "functions/generateReport.js",
             "send_email": "functions/sendEmail.js",
             "process_payment": "functions/processPayment.js",
-            "all": None  # Deploy all functions
+            "all": None,  # Deploy all functions
         }
 
         if function_name not in function_mapping:
             return {
                 "success": False,
                 "error": f"Unknown function: {function_name}",
-                "available_functions": list(function_mapping.keys())
+                "available_functions": list(function_mapping.keys()),
             }
 
         # Use Firebase MCP to deploy functions
         deploy_params = {
-            "only": f"functions:{function_name}" if function_name != "all" else "functions"
+            "only": (
+                f"functions:{function_name}" if function_name != "all" else "functions"
+            )
         }
 
         if environment == "production":
@@ -464,23 +487,29 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 "deployed_function": function_name,
                 "environment": environment,
                 "deployment_result": result["result"],
-                "context": "diagnosticpro_deployment"
+                "context": "diagnosticpro_deployment",
             }
         else:
             return {
                 "success": False,
                 "error": f"Failed to deploy function: {function_name}",
                 "function_name": function_name,
-                "environment": environment
+                "environment": environment,
             }
 
     def get_info(self) -> Dict[str, str]:
         """Get Firebase MCP plugin information"""
         base_info = super().get_info()
-        base_info.update({
-            "firebase_project": self.credentials.get("FIREBASE_PROJECT_ID", "not_configured"),
-            "firebase_region": self.credentials.get("FIREBASE_REGION", "us-central1"),
-            "mcp_server": "firebase_cli_experimental",
-            "integration_type": "stdio_mcp_bridge"
-        })
+        base_info.update(
+            {
+                "firebase_project": self.credentials.get(
+                    "FIREBASE_PROJECT_ID", "not_configured"
+                ),
+                "firebase_region": self.credentials.get(
+                    "FIREBASE_REGION", "us-central1"
+                ),
+                "mcp_server": "firebase_cli_experimental",
+                "integration_type": "stdio_mcp_bridge",
+            }
+        )
         return base_info

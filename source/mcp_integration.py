@@ -11,12 +11,16 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from .database import (
-    db_manager, initialize_default_mcp_servers, list_mcp_servers,
-    get_mcp_server, update_mcp_server_status
+    db_manager,
+    initialize_default_mcp_servers,
+    list_mcp_servers,
+    get_mcp_server,
+    update_mcp_server_status,
 )
 from .plugins.plugin_loader import get_plugin_loader
 
 logger = logging.getLogger("waygate_mcp.mcp_integration")
+
 
 class MCPIntegrationManager:
     """
@@ -50,8 +54,10 @@ class MCPIntegrationManager:
             await self._load_enabled_mcp_servers()
 
             self.is_initialized = True
-            logger.info(f"✅ MCP integration system initialized with "
-                       f"{len(self.mcp_servers)} active MCP servers")
+            logger.info(
+                f"✅ MCP integration system initialized with "
+                f"{len(self.mcp_servers)} active MCP servers"
+            )
 
         except Exception as e:
             logger.error(f"❌ MCP integration initialization failed: {e}")
@@ -114,8 +120,7 @@ class MCPIntegrationManager:
             if plugin_name not in self.plugin_loader.loaded_plugins:
                 logger.error(f"❌ MCP plugin not found: {plugin_name}")
                 await update_mcp_server_status(
-                    server_config["name"], "error",
-                    f"Plugin not found: {plugin_name}"
+                    server_config["name"], "error", f"Plugin not found: {plugin_name}"
                 )
                 return
 
@@ -127,33 +132,32 @@ class MCPIntegrationManager:
             server_config["credentials"].update(credentials)
 
             # Configure the plugin
-            if hasattr(mcp_plugin, 'configure_mcp_server'):
+            if hasattr(mcp_plugin, "configure_mcp_server"):
                 await mcp_plugin.configure_mcp_server(server_config)
 
             # Store the configured MCP server
             self.mcp_servers[server_config["name"]] = {
                 "config": server_config,
                 "plugin": mcp_plugin,
-                "status": "active"
+                "status": "active",
             }
 
             # Update database status
             tool_count = len(await mcp_plugin.get_tools())
             await update_mcp_server_status(
-                server_config["name"], "active",
-                tool_count=tool_count
+                server_config["name"], "active", tool_count=tool_count
             )
 
-            logger.info(f"✅ MCP server loaded: {server_config['display_name']} "
-                       f"({tool_count} tools)")
+            logger.info(
+                f"✅ MCP server loaded: {server_config['display_name']} "
+                f"({tool_count} tools)"
+            )
 
         except Exception as e:
             logger.error(f"❌ Failed to load MCP server {server_type}: {e}")
 
             if server_config:
-                await update_mcp_server_status(
-                    server_config["name"], "error", str(e)
-                )
+                await update_mcp_server_status(server_config["name"], "error", str(e))
 
     async def _load_mcp_credentials(self, server_type: str) -> Dict[str, Any]:
         """Load MCP server credentials from environment variables"""
@@ -164,46 +168,52 @@ class MCPIntegrationManager:
                 credentials = {
                     "FIREBASE_PROJECT_ID": os.getenv("FIREBASE_PROJECT_ID"),
                     "FIREBASE_REGION": os.getenv("FIREBASE_REGION"),
-                    "GOOGLE_APPLICATION_CREDENTIALS": os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+                    "GOOGLE_APPLICATION_CREDENTIALS": os.getenv(
+                        "GOOGLE_APPLICATION_CREDENTIALS"
+                    ),
                 }
 
             elif server_type == "bigquery":
                 credentials = {
                     "GOOGLE_CLOUD_PROJECT": os.getenv("GOOGLE_CLOUD_PROJECT"),
                     "BIGQUERY_DATASET": os.getenv("BIGQUERY_DATASET"),
-                    "GOOGLE_APPLICATION_CREDENTIALS": os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+                    "GOOGLE_APPLICATION_CREDENTIALS": os.getenv(
+                        "GOOGLE_APPLICATION_CREDENTIALS"
+                    ),
                 }
 
             elif server_type == "github":
                 credentials = {
                     "GITHUB_TOKEN": os.getenv("GITHUB_TOKEN"),
-                    "GITHUB_OWNER": os.getenv("GITHUB_OWNER")
+                    "GITHUB_OWNER": os.getenv("GITHUB_OWNER"),
                 }
 
             elif server_type == "n8n":
                 credentials = {
                     "N8N_API_URL": os.getenv("N8N_API_URL"),
-                    "N8N_API_KEY": os.getenv("N8N_API_KEY")
+                    "N8N_API_KEY": os.getenv("N8N_API_KEY"),
                 }
 
             elif server_type == "docker_hub":
                 credentials = {
                     "DOCKER_HUB_TOKEN": os.getenv("DOCKER_HUB_TOKEN"),
-                    "DOCKER_HUB_USERNAME": os.getenv("DOCKER_HUB_USERNAME")
+                    "DOCKER_HUB_USERNAME": os.getenv("DOCKER_HUB_USERNAME"),
                 }
 
             elif server_type == "slack":
                 credentials = {
                     "SLACK_BOT_TOKEN": os.getenv("SLACK_BOT_TOKEN"),
                     "SLACK_APP_TOKEN": os.getenv("SLACK_APP_TOKEN"),
-                    "SLACK_WORKSPACE": os.getenv("SLACK_WORKSPACE")
+                    "SLACK_WORKSPACE": os.getenv("SLACK_WORKSPACE"),
                 }
 
             # Filter out None values
             credentials = {k: v for k, v in credentials.items() if v is not None}
 
-            logger.debug(f"🔑 Loaded credentials for {server_type}: "
-                        f"{list(credentials.keys())}")
+            logger.debug(
+                f"🔑 Loaded credentials for {server_type}: "
+                f"{list(credentials.keys())}"
+            )
 
         except Exception as e:
             logger.error(f"❌ Failed to load credentials for {server_type}: {e}")
@@ -233,8 +243,9 @@ class MCPIntegrationManager:
 
         return all_tools
 
-    async def execute_mcp_tool(self, server_name: str, tool_name: str,
-                              parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_mcp_tool(
+        self, server_name: str, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute a tool on a specific MCP server
 
@@ -250,7 +261,7 @@ class MCPIntegrationManager:
             return {
                 "success": False,
                 "error": f"MCP server not found: {server_name}",
-                "available_servers": list(self.mcp_servers.keys())
+                "available_servers": list(self.mcp_servers.keys()),
             }
 
         try:
@@ -276,7 +287,7 @@ class MCPIntegrationManager:
                 "success": False,
                 "error": error_msg,
                 "mcp_server": server_name,
-                "tool": tool_name
+                "tool": tool_name,
             }
 
     async def get_mcp_status(self) -> Dict[str, Any]:
@@ -296,29 +307,33 @@ class MCPIntegrationManager:
                 plugin_info = plugin.get_info()
                 tool_count = len(await plugin.get_tools())
 
-                server_status.append({
-                    "name": server_name,
-                    "display_name": config["display_name"],
-                    "server_type": config["server_type"],
-                    "status": server_info["status"],
-                    "tool_count": tool_count,
-                    "communication_method": config.get("communication_method", "unknown"),
-                    "plugin_info": plugin_info
-                })
+                server_status.append(
+                    {
+                        "name": server_name,
+                        "display_name": config["display_name"],
+                        "server_type": config["server_type"],
+                        "status": server_info["status"],
+                        "tool_count": tool_count,
+                        "communication_method": config.get(
+                            "communication_method", "unknown"
+                        ),
+                        "plugin_info": plugin_info,
+                    }
+                )
 
             except Exception as e:
-                server_status.append({
-                    "name": server_name,
-                    "status": "error",
-                    "error": str(e)
-                })
+                server_status.append(
+                    {"name": server_name, "status": "error", "error": str(e)}
+                )
 
         return {
             "integration_status": "active" if self.is_initialized else "inactive",
             "total_servers": len(self.mcp_servers),
-            "active_servers": len([s for s in server_status if s.get("status") == "active"]),
+            "active_servers": len(
+                [s for s in server_status if s.get("status") == "active"]
+            ),
             "total_tools": sum(s.get("tool_count", 0) for s in server_status),
-            "servers": server_status
+            "servers": server_status,
         }
 
     async def reload_mcp_server(self, server_name: str) -> bool:
@@ -354,12 +369,15 @@ class MCPIntegrationManager:
             logger.error(f"❌ MCP server reload failed: {e}")
             return False
 
+
 # Global MCP integration manager
 mcp_integration_manager = MCPIntegrationManager()
+
 
 async def initialize_mcp_integration():
     """Initialize the MCP integration system"""
     await mcp_integration_manager.initialize()
+
 
 async def get_mcp_manager():
     """Get the global MCP integration manager"""

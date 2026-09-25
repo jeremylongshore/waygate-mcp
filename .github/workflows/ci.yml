@@ -38,7 +38,7 @@ jobs:
 
       - name: 📦 Install security tools
         run: |
-          pip install --upgrade bandit[toml] safety semgrep pip-audit detect-secrets cyclonedx-bom pip-licenses
+          pip install 'bandit[toml]==1.9.4' 'safety==3.8.1' 'semgrep==1.178.0' 'pip-audit==2.10.1' 'detect-secrets==1.5.0' 'cyclonedx-bom==7.4.0' 'pip-licenses==5.5.5'
 
       - name: 🔍 Run comprehensive security scan
         run: |
@@ -120,7 +120,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r source/requirements.txt
           pip install -r source/requirements-dev.txt
-          pip install pytest pytest-cov pytest-asyncio black isort flake8 mypy
+          pip install 'pytest==9.1.1' 'pytest-cov==7.1.0' 'pytest-asyncio==1.4.0' 'black==26.5.1' 'isort==9.0.1' 'flake8==7.4.1' 'mypy==2.3.1'
 
       - name: 🎨 Code formatting check
         run: |
@@ -249,7 +249,7 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           pip install -r source/requirements.txt
-          pip install pytest-benchmark
+          pip install 'pytest-benchmark==5.3.0'
 
       - name: ⚡ Run performance tests
         run: |

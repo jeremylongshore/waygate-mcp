@@ -15,12 +15,15 @@ from contextlib import asynccontextmanager
 
 logger = logging.getLogger("waygate_mcp.database_simple")
 
+
 class SimpleDatabaseManager:
     """Simplified database manager using only SQLite"""
 
     def __init__(self):
-        self.db_path = os.getenv("DATABASE_URL", "sqlite:///./waygate.db").replace("sqlite:///", "")
-        if not self.db_path.endswith('.db'):
+        self.db_path = os.getenv("DATABASE_URL", "sqlite:///./waygate.db").replace(
+            "sqlite:///", ""
+        )
+        if not self.db_path.endswith(".db"):
             self.db_path = "./waygate.db"
 
     async def initialize(self):
@@ -63,7 +66,7 @@ class SimpleDatabaseManager:
             # Insert default config
             cursor.execute(
                 "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)",
-                ("waygate_version", "2.0.0")
+                ("waygate_version", "2.0.0"),
             )
 
             conn.commit()
@@ -89,7 +92,7 @@ class SimpleDatabaseManager:
                 "type": "sqlite",
                 "config_entries": count,
                 "path": self.db_path,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -97,7 +100,7 @@ class SimpleDatabaseManager:
             return {
                 "database": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
     def record_event(self, event_type: str, description: str = None):
@@ -107,20 +110,23 @@ class SimpleDatabaseManager:
             cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO events (event_type, description) VALUES (?, ?)",
-                (event_type, description)
+                (event_type, description),
             )
             conn.commit()
             conn.close()
         except Exception as e:
             logger.error("❌ Failed to record event: %s", e)
 
+
 # Global instance
 simple_db = SimpleDatabaseManager()
+
 
 # Compatibility functions
 async def init_database():
     """Initialize database (called at startup)"""
     await simple_db.initialize()
+
 
 # For backward compatibility
 db_manager = simple_db
