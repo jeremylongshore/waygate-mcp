@@ -35,8 +35,8 @@ export X_ACCESS_TOKEN="your-access-token-here"
 export X_ACCESS_TOKEN_SECRET="your-access-token-secret-here"
 
 # You already have these (Consumer Key/Secret):
-# export X_API_KEY="thpZd6tCyjgYJVTr0waBx2RolP"
-# export X_API_SECRET="tAnB8BhULV3J4sfP2HC5..."
+# export X_API_KEY="REDACTED_X_CONSUMER_KEY"
+# export X_API_SECRET="REDACTED_X_CONSUMER_SECRET..."
 ```
 
 ### Step 3: Restart MCP Server
@@ -80,9 +80,9 @@ The `http_request` tool automatically:
 ## Current Available Credentials
 
 ```bash
-✅ X_API_KEY (Consumer Key): thpZd6tCyjgYJVTr0waBx2RolP
-✅ X_API_SECRET (Consumer Secret): tAnB8BhULV3J4sfP...
-✅ X_OAUTH2_ACCESS_TOKEN: N0N3NmRfcUthdGNrOTJV... (EXPIRED)
+✅ X_API_KEY (Consumer Key): REDACTED_X_CONSUMER_KEY
+✅ X_API_SECRET (Consumer Secret): REDACTED_X_CONSUMER_SECRET...
+✅ X_OAUTH2_ACCESS_TOKEN: REDACTED_X_OAUTH2_ACCESS_TOKEN... (EXPIRED)
 ❌ X_ACCESS_TOKEN: MISSING - Generate from Developer Portal
 ❌ X_ACCESS_TOKEN_SECRET: MISSING - Generate from Developer Portal
 ```

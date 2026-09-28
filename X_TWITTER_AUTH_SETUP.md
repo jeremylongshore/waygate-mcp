@@ -15,7 +15,7 @@
 
 The provided Bearer token is **invalid or expired**:
 ```
-X_OAUTH2_ACCESS_TOKEN = "ZllRajY2eVVGSDBtR1JqMEFxa1VzV3NCVlN1NkF3OGpSV0hDY1hDMlVGbmoxOjE3NTkwMjI0ODIwOTI6MTowOmF0OjE"
+X_OAUTH2_ACCESS_TOKEN = "REDACTED_X_OAUTH2_ACCESS_TOKEN"
 ```
 
 **API Response**: `401 Unauthorized - {"title": "Unauthorized", "detail": "Unauthorized"}`
