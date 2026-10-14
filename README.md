@@ -1,5 +1,11 @@
 # Waygate MCP - Complete Enterprise MCP Server Framework
 
+<!-- intent-select-partner:start -->
+<p><a href="https://intentsolutions.io/"><img src="https://raw.githubusercontent.com/intent-solutions-io/.github/b82af5d3e7951d85e39ea9e65cc24ee8278722a7/assets/brand/claude-select-partner.svg" alt="Intent Solutions: Claude Partner Network Select Services Partner" width="300" height="95" /></a></p>
+
+Intent Solutions is a Claude Partner Network Select Services Partner.
+<!-- intent-select-partner:end -->
+
 [![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/waygateai/waygate-mcp/releases/tag/v2.2.0)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.com)
 [![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-Ready-purple.svg)](https://claude.ai/desktop)
