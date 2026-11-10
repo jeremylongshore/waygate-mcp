@@ -31,7 +31,8 @@ RUN apt-get update && \
         && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Security: Create build user to avoid root operations
-RUN groupadd -r builder && useradd -r -g builder -m builder
+RUN groupadd -r builder && useradd -r -g builder -m builder && \
+    mkdir -p /build/wheels && chown -R builder:builder /build
 USER builder
 WORKDIR /build
 
@@ -79,9 +80,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     rm -rf /tmp/wheels /root/.cache/pip
 
 # Copy application code with proper ownership
-COPY --chown=waygate:waygate ./source/waygate_mcp.py /app/waygate_mcp.py
-COPY --chown=waygate:waygate ./source /app/src
-COPY --chown=waygate:waygate ./source/configs /app/configs
+COPY --chown=waygate:waygate ./source /app/source
 COPY --chown=waygate:waygate ./deployment/scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod 550 /app/docker-entrypoint.sh
 
@@ -90,6 +89,12 @@ RUN setcap -r /usr/local/bin/python3.12 || true
 
 # Security: Set security options
 USER waygate
+
+ENV WAYGATE_BASE_DIR=/app \
+    WAYGATE_DATA_DIR=/app/data \
+    WAYGATE_PROJECTS_DIR=/app/data/projects \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Security: Don't run as PID 1, use init system
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
