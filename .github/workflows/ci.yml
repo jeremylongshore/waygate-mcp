@@ -38,7 +38,7 @@ jobs:
 
       - name: 📦 Install security tools
         run: |
-          pip install --upgrade bandit[toml] safety semgrep pip-audit detect-secrets cyclonedx-bom pip-licenses
+          pip install 'bandit[toml]==1.9.4' 'safety==3.8.1' 'semgrep==1.178.0' 'pip-audit==2.10.1' 'detect-secrets==1.5.0' 'cyclonedx-bom==7.4.0' 'pip-licenses==5.5.5'
 
       - name: 🔍 Run comprehensive security scan
         run: |
@@ -120,7 +120,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r source/requirements.txt
           pip install -r source/requirements-dev.txt
-          pip install pytest pytest-cov pytest-asyncio black isort flake8 mypy
+          pip install 'pytest==9.1.1' 'pytest-cov==7.1.0' 'pytest-asyncio==1.4.0' 'black==26.5.1' 'isort==9.0.1' 'flake8==7.4.1' 'mypy==2.3.1'
 
       - name: 🎨 Code formatting check
         run: |
@@ -169,8 +169,7 @@ jobs:
 
       - name: 🏗️ Build Docker image
         run: |
-          cd deployment
-          docker build -t waygate-mcp:test .
+          docker build -f deployment/Dockerfile -t waygate-mcp:test .
 
       - name: 🔍 Scan Docker image for vulnerabilities
         run: |
@@ -196,37 +195,31 @@ jobs:
     name: 🚀 Deployment Test
     runs-on: ubuntu-latest
     needs: [security, test, docker]
+    env:
+      DATABASE_URL: sqlite:////app/data/ci.db
+      MCP_SERVERS_ENABLED: ""
+      MCP_AUTO_INITIALIZE: "false"
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v7
 
       - name: 🐳 Start services
-        run: |
-          cd deployment
-          docker-compose -f docker-compose.yml up -d
-          sleep 30  # Wait for services to start
+        run: docker compose -p waygate-ci -f deployment/docker-compose.yml up --build -d --wait --wait-timeout 120 waygate
 
-      - name: 🏥 Health check
+      - name: 🧪 Verify database and HTTP tools
         run: |
-          # Test MCP server health
-          curl -f http://localhost:8000/health || exit 1
+          docker compose -p waygate-ci -f deployment/docker-compose.yml exec -T waygate python -c \
+            'import sqlite3; db = sqlite3.connect("/app/data/ci.db"); assert db.execute("SELECT count(*) FROM config").fetchone()[0] >= 5'
+          python deployment/scripts/ci-smoke.py
 
-          # Test MCP tools endpoint
-          curl -f http://localhost:8000/mcp/tools || exit 1
-
-      - name: 🧪 Integration tests
-        run: |
-          # Test MCP command execution
-          curl -X POST http://localhost:8000/mcp/execute \
-            -H "Content-Type: application/json" \
-            -d '{"action": "read_file", "params": {"path": "README.md"}}' || exit 1
+      - name: 📋 Container diagnostics
+        if: failure()
+        run: docker compose -p waygate-ci -f deployment/docker-compose.yml logs --no-color waygate
 
       - name: 🛑 Cleanup
         if: always()
-        run: |
-          cd deployment
-          docker-compose down
+        run: docker compose -p waygate-ci -f deployment/docker-compose.yml down --volumes
 
   # ========================================
   # PERFORMANCE BENCHMARKS
@@ -249,7 +242,7 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           pip install -r source/requirements.txt
-          pip install pytest-benchmark
+          pip install 'pytest-benchmark==5.3.0'
 
       - name: ⚡ Run performance tests
         run: |
@@ -300,14 +293,16 @@ jobs:
     steps:
       - name: 📊 Workflow Summary
         run: |
-          echo "## 🎯 Waygate MCP CI/CD Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔒 Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 🧪 Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 🐳 Docker: ${{ needs.docker.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚀 Deploy: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🎯 Waygate MCP CI/CD Summary"
+            echo "- 🔒 Security: ${{ needs.security.result }}"
+            echo "- 🧪 Tests: ${{ needs.test.result }}"
+            echo "- 🐳 Docker: ${{ needs.docker.result }}"
+            echo "- 🚀 Deploy: ${{ needs.deploy-test.result }}"
 
-          if [[ "${{ needs.security.result }}" == "failure" ]]; then
-            echo "❌ **CRITICAL: Security scan failed!**" >> $GITHUB_STEP_SUMMARY
-          fi
+            if [[ "${{ needs.security.result }}" == "failure" ]]; then
+              echo "❌ **CRITICAL: Security scan failed!**"
+            fi
 
-          echo "📊 View detailed reports in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "📊 View detailed reports in workflow artifacts"
+          } >> "$GITHUB_STEP_SUMMARY"

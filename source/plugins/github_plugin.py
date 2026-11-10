@@ -3,21 +3,25 @@ GitHub Integration Plugin for Waygate MCP
 Easy GitHub operations without technical knowledge
 """
 
-from .base_plugin import BasePlugin
-from typing import Dict, Any, List
 import os
-import json
+from typing import Any, Dict, List
+
+from .base_plugin import BasePlugin
+
 
 class GitHubPlugin(BasePlugin):
     """
     Simple GitHub integration for non-technical users.
     """
 
-    def __init__(self):
+    def __init__(self, data_dir: str = "/app/data") -> None:
         super().__init__()
+        self.data_dir = data_dir
         self.name = "GitHub Integration"
         self.version = "1.0.0"
-        self.description = "Easy GitHub operations - create repos, manage issues, and more"
+        self.description = (
+            "Easy GitHub operations - create repos, manage issues, and more"
+        )
 
     async def get_tools(self) -> List[Dict[str, Any]]:
         """
@@ -30,8 +34,8 @@ class GitHubPlugin(BasePlugin):
                 "parameters": {
                     "repo_name": "string - Name of your repository",
                     "description": "string - What your repo is about",
-                    "private": "boolean - Make it private? (default: false)"
-                }
+                    "private": "boolean - Make it private? (default: false)",
+                },
             },
             {
                 "name": "create_issue",
@@ -39,13 +43,13 @@ class GitHubPlugin(BasePlugin):
                 "parameters": {
                     "repo": "string - Repository name",
                     "title": "string - Issue title",
-                    "body": "string - Issue description"
-                }
+                    "body": "string - Issue description",
+                },
             },
             {
                 "name": "list_my_repos",
                 "description": "List all your GitHub repositories",
-                "parameters": {}
+                "parameters": {},
             },
             {
                 "name": "create_readme",
@@ -54,12 +58,14 @@ class GitHubPlugin(BasePlugin):
                     "project_name": "string - Your project name",
                     "description": "string - What your project does",
                     "installation": "string - How to install/use",
-                    "author": "string - Your name"
-                }
-            }
+                    "author": "string - Your name",
+                },
+            },
         ]
 
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute GitHub operations.
         """
@@ -91,21 +97,21 @@ class GitHubPlugin(BasePlugin):
                 "description": description,
                 "private": private,
                 "default_branch": "main",
-                "created_at": "2024-01-15T12:00:00Z"
+                "created_at": "2024-01-15T12:00:00Z",
             },
             "instructions": [
-                f"1. Go to https://github.com/new",
+                "1. Go to https://github.com/new",
                 f"2. Enter repository name: {repo_name}",
                 f"3. Add description: {description}",
                 f"4. Set visibility: {'Private' if private else 'Public'}",
-                "5. Click 'Create repository'"
-            ]
+                "5. Click 'Create repository'",
+            ],
         }
 
         return {
             "success": True,
             "message": f"Repository template created for '{repo_name}'",
-            "data": template
+            "data": template,
         }
 
     async def create_issue(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -122,21 +128,23 @@ class GitHubPlugin(BasePlugin):
                 "title": title,
                 "body": body,
                 "labels": [],
-                "assignees": []
+                "assignees": [],
             },
-            "markdown": f"""## {title}
+            "markdown": (
+                f"""## {title}
 
 {body}
 
 ---
 *Created with Waygate MCP*
 """
+            ),
         }
 
         return {
             "success": True,
             "message": f"Issue template created: '{title}'",
-            "data": issue_template
+            "data": issue_template,
         }
 
     async def list_repos(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -147,14 +155,14 @@ class GitHubPlugin(BasePlugin):
         example_repos = [
             {"name": "waygate-mcp", "stars": 42, "language": "Python"},
             {"name": "my-website", "stars": 5, "language": "HTML"},
-            {"name": "awesome-project", "stars": 128, "language": "JavaScript"}
+            {"name": "awesome-project", "stars": 128, "language": "JavaScript"},
         ]
 
         return {
             "success": True,
             "message": "Repository list retrieved",
             "repositories": example_repos,
-            "total": len(example_repos)
+            "total": len(example_repos),
         }
 
     async def create_readme(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -166,6 +174,7 @@ class GitHubPlugin(BasePlugin):
         installation = params.get("installation", "npm install")
         author = params.get("author", "Your Name")
 
+        github_handle = author.lower().replace(" ", "")
         readme_content = f"""# {project_name}
 
 {description}
@@ -204,13 +213,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE) file for details.
 
 ## 👤 Author
 
 **{author}**
 
-- GitHub: [@{author.lower().replace(' ', '')}](https://github.com/{author.lower().replace(' ', '')})
+- GitHub: [@{github_handle}](https://github.com/{github_handle})
 
 ## 🌟 Show your support
 
@@ -218,20 +228,21 @@ Give a ⭐️ if this project helped you!
 
 ---
 
-*This README was generated with ❤️ by [Waygate MCP](https://github.com/yourusername/waygate-mcp)*
+*This README was generated with ❤️ by
+[Waygate MCP](https://github.com/yourusername/waygate-mcp)*
 """
 
         # Save to file
-        readme_path = "/app/data/README_template.md"
+        readme_path = os.path.join(self.data_dir, "README_template.md")
         os.makedirs(os.path.dirname(readme_path), exist_ok=True)
-        with open(readme_path, 'w') as f:
+        with open(readme_path, "w") as f:
             f.write(readme_content)
 
         return {
             "success": True,
             "message": f"README.md created for '{project_name}'",
             "content": readme_content,
-            "saved_to": readme_path
+            "saved_to": readme_path,
         }
 
 

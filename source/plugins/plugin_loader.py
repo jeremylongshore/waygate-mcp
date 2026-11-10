@@ -4,23 +4,37 @@ Plugin Loader for Waygate MCP
 Handles dynamic loading of plugins and MCP server integrations
 """
 
-import os
-import sys
-import json
+from __future__ import annotations
+
 import asyncio
 import importlib
+import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Type
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict
+
+if TYPE_CHECKING:
+    from ..database import DatabaseManager
 
 from .base_plugin import BasePlugin
 
 logger = logging.getLogger("waygate_mcp.plugin_loader")
 
+
 class PluginLoadError(Exception):
     """Exception raised when plugin loading fails"""
+
     pass
+
+
+class PluginStats(TypedDict):
+    total_loaded: int
+    total_failed: int
+    last_load_time: datetime | None
+    mcp_servers_active: int
+
 
 class PluginLoader:
     """
@@ -34,7 +48,7 @@ class PluginLoader:
     - Error handling and recovery
     """
 
-    def __init__(self, db_manager=None):
+    def __init__(self, db_manager: DatabaseManager | None = None) -> None:
         self.db_manager = db_manager
         self.loaded_plugins: Dict[str, BasePlugin] = {}
         self.plugin_configs: Dict[str, Dict[str, Any]] = {}
@@ -42,11 +56,11 @@ class PluginLoader:
         self.plugins_directory = Path(__file__).parent
 
         # Plugin status tracking
-        self.plugin_stats = {
+        self.plugin_stats: PluginStats = {
             "total_loaded": 0,
             "total_failed": 0,
             "last_load_time": None,
-            "mcp_servers_active": 0
+            "mcp_servers_active": 0,
         }
 
     async def discover_plugins(self) -> List[str]:
@@ -84,7 +98,7 @@ class PluginLoader:
         """
         try:
             # Import the plugin module
-            module_name = f"plugins.{plugin_name}"
+            module_name = f"{__package__}.{plugin_name}"
 
             # Remove from sys.modules if already imported (for hot-reloading)
             if module_name in sys.modules:
@@ -98,9 +112,11 @@ class PluginLoader:
 
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (isinstance(attr, type) and
-                    issubclass(attr, BasePlugin) and
-                    attr != BasePlugin):
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, BasePlugin)
+                    and attr != BasePlugin
+                ):
                     plugin_class = attr
                     break
 
@@ -114,7 +130,7 @@ class PluginLoader:
             await self._load_plugin_config(plugin_name, plugin_instance)
 
             # Initialize plugin if it has initialization method
-            if hasattr(plugin_instance, 'initialize'):
+            if hasattr(plugin_instance, "initialize"):
                 await plugin_instance.initialize()
 
             # Store the loaded plugin
@@ -158,8 +174,9 @@ class PluginLoader:
                 load_tasks.append((plugin_name, task))
 
             # Wait for all plugins to load
-            results = await asyncio.gather(*[task for _, task in load_tasks],
-                                         return_exceptions=True)
+            results = await asyncio.gather(
+                *[task for _, task in load_tasks], return_exceptions=True
+            )
 
             # Process results
             successful_plugins = {}
@@ -173,8 +190,10 @@ class PluginLoader:
 
             self.plugin_stats["last_load_time"] = datetime.now(timezone.utc)
 
-            logger.info(f"✅ Plugin loading complete: {len(successful_plugins)} loaded, "
-                       f"{self.plugin_stats['total_failed']} failed")
+            logger.info(
+                f"✅ Plugin loading complete: {len(successful_plugins)} loaded, "
+                f"{self.plugin_stats['total_failed']} failed"
+            )
 
             # Load MCP server configurations
             await self.load_mcp_server_plugins()
@@ -185,7 +204,7 @@ class PluginLoader:
             logger.error(f"❌ Failed to load plugins: {e}")
             return {}
 
-    async def load_mcp_server_plugins(self):
+    async def load_mcp_server_plugins(self) -> None:
         """
         Load MCP server configurations from database
         """
@@ -210,17 +229,19 @@ class PluginLoader:
                     mcp_plugin = self.loaded_plugins[plugin_name]
 
                     # Configure the MCP plugin with server config
-                    if hasattr(mcp_plugin, 'configure_mcp_server'):
+                    if hasattr(mcp_plugin, "configure_mcp_server"):
                         await mcp_plugin.configure_mcp_server(config)
 
                     self.mcp_servers[server_name] = {
                         "plugin": mcp_plugin,
                         "config": config,
-                        "status": "active"
+                        "status": "active",
                     }
 
                     self.plugin_stats["mcp_servers_active"] += 1
-                    logger.info(f"🔗 MCP server configured: {server_name} ({server_type})")
+                    logger.info(
+                        f"🔗 MCP server configured: {server_name} ({server_type})"
+                    )
                 else:
                     logger.warning(f"⚠️ MCP plugin not found: {plugin_name}")
 
@@ -245,7 +266,7 @@ class PluginLoader:
                 old_plugin = self.loaded_plugins[plugin_name]
 
                 # Call cleanup if available
-                if hasattr(old_plugin, 'cleanup'):
+                if hasattr(old_plugin, "cleanup"):
                     await old_plugin.cleanup()
 
                 # Remove from loaded plugins
@@ -283,7 +304,7 @@ class PluginLoader:
             plugin = self.loaded_plugins[plugin_name]
 
             # Call cleanup if available
-            if hasattr(plugin, 'cleanup'):
+            if hasattr(plugin, "cleanup"):
                 await plugin.cleanup()
 
             # Remove from loaded plugins
@@ -319,8 +340,9 @@ class PluginLoader:
 
         return all_tools
 
-    async def execute_plugin_tool(self, plugin_name: str, tool_name: str,
-                                parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_plugin_tool(
+        self, plugin_name: str, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute a tool from a specific plugin
 
@@ -333,10 +355,7 @@ class PluginLoader:
             Tool execution result
         """
         if plugin_name not in self.loaded_plugins:
-            return {
-                "success": False,
-                "error": f"Plugin not found: {plugin_name}"
-            }
+            return {"success": False, "error": f"Plugin not found: {plugin_name}"}
 
         try:
             plugin = self.loaded_plugins[plugin_name]
@@ -348,10 +367,7 @@ class PluginLoader:
         except Exception as e:
             error_msg = f"Tool execution failed: {e}"
             logger.error(f"❌ {error_msg}")
-            return {
-                "success": False,
-                "error": error_msg
-            }
+            return {"success": False, "error": error_msg}
 
     async def get_plugin_status(self) -> Dict[str, Any]:
         """
@@ -370,11 +386,13 @@ class PluginLoader:
 
         mcp_server_list = []
         for server_name, server_info in self.mcp_servers.items():
-            mcp_server_list.append({
-                "name": server_name,
-                "status": server_info["status"],
-                "plugin": server_info["plugin"].name
-            })
+            mcp_server_list.append(
+                {
+                    "name": server_name,
+                    "status": server_info["status"],
+                    "plugin": server_info["plugin"].name,
+                }
+            )
 
         return {
             "plugins_loaded": len(self.loaded_plugins),
@@ -382,10 +400,12 @@ class PluginLoader:
             "mcp_servers_active": self.plugin_stats["mcp_servers_active"],
             "last_load_time": self.plugin_stats["last_load_time"],
             "plugins": plugin_list,
-            "mcp_servers": mcp_server_list
+            "mcp_servers": mcp_server_list,
         }
 
-    async def _load_plugin_config(self, plugin_name: str, plugin_instance: BasePlugin):
+    async def _load_plugin_config(
+        self, plugin_name: str, plugin_instance: BasePlugin
+    ) -> None:
         """
         Load configuration for a plugin from database
 
@@ -399,8 +419,7 @@ class PluginLoader:
         try:
             # Query plugin configuration from database
             config_result = await self.db_manager.execute_query(
-                "SELECT config FROM plugins WHERE name = ?",
-                [plugin_name]
+                "SELECT config FROM plugins WHERE name = ?", [plugin_name]
             )
 
             if config_result:
@@ -408,7 +427,7 @@ class PluginLoader:
                 self.plugin_configs[plugin_name] = config_data
 
                 # Apply configuration to plugin if it supports it
-                if hasattr(plugin_instance, 'configure'):
+                if hasattr(plugin_instance, "configure"):
                     await plugin_instance.configure(config_data)
 
                 logger.debug(f"📋 Plugin configuration loaded: {plugin_name}")
@@ -416,8 +435,9 @@ class PluginLoader:
         except Exception as e:
             logger.warning(f"⚠️ Failed to load config for {plugin_name}: {e}")
 
-    async def _update_plugin_status(self, plugin_name: str, status: str,
-                                  error_message: Optional[str] = None):
+    async def _update_plugin_status(
+        self, plugin_name: str, status: str, error_message: Optional[str] = None
+    ) -> None:
         """
         Update plugin status in database
 
@@ -437,30 +457,45 @@ class PluginLoader:
                 plugin_info = plugin.get_info()
 
             # Update or insert plugin record
-            await self.db_manager.execute_query("""
-                INSERT OR REPLACE INTO plugins
-                (name, display_name, version, description, status, error_message,
+            await self.db_manager.execute_query(
+                """
+                INSERT INTO plugins
+                (name, display_name, version, description, module_path,
+                 status, error_message,
                  last_loaded, load_count, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
-                        COALESCE((SELECT load_count FROM plugins WHERE name = ?), 0) + 1,
+                VALUES (?, ?, ?, ?, ?, ?, ?,
+                        CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP END,
+                        CASE WHEN ? = 'active' THEN 1 ELSE 0 END,
                         CURRENT_TIMESTAMP)
-            """, [
-                plugin_name,
-                plugin_info.get('name', plugin_name),
-                plugin_info.get('version', '1.0.0'),
-                plugin_info.get('description', 'Waygate MCP Plugin'),
-                status,
-                error_message,
-                plugin_name
-            ])
+                ON CONFLICT(name) DO UPDATE SET
+                    status = excluded.status,
+                    error_message = excluded.error_message,
+                    last_loaded = COALESCE(excluded.last_loaded, plugins.last_loaded),
+                    load_count = plugins.load_count + excluded.load_count,
+                    updated_at = excluded.updated_at
+            """,
+                [
+                    plugin_name,
+                    plugin_info.get("name", plugin_name),
+                    plugin_info.get("version", "1.0.0"),
+                    plugin_info.get("description", "Waygate MCP Plugin"),
+                    f"{__package__}.{plugin_name}",
+                    status,
+                    error_message,
+                    status,
+                    status,
+                ],
+            )
 
         except Exception as e:
             logger.error(f"❌ Failed to update plugin status: {e}")
 
-# Global plugin loader instance
-plugin_loader = None
 
-async def get_plugin_loader(db_manager=None):
+# Global plugin loader instance
+plugin_loader: PluginLoader | None = None
+
+
+async def get_plugin_loader(db_manager: DatabaseManager | None = None) -> PluginLoader:
     """
     Get the global plugin loader instance
 
@@ -479,7 +514,8 @@ async def get_plugin_loader(db_manager=None):
 
     return plugin_loader
 
-async def initialize_plugins(db_manager=None):
+
+async def initialize_plugins(db_manager: DatabaseManager | None = None) -> None:
     """
     Initialize the plugin system
 

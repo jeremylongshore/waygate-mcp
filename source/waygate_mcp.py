@@ -4,40 +4,40 @@ Waygate MCP Server - Foundational MCP implementation
 Successor to NEXUS MCP with stdio-based communication
 """
 
-import os
-import sys
-import json
 import asyncio
 import logging
-import signal
+import os
 import secrets
-from typing import Dict, Any, List, Optional
+import signal
+import sys
 from datetime import datetime
 from pathlib import Path
+from types import FrameType
+from typing import Any, Dict, Optional
+
+import click
+import structlog
+import uvicorn
 
 # FastAPI and related imports
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
-import uvicorn
-import click
-import structlog
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Waygate MCP modules
-from .database import init_database, db_manager
-from .mcp_integration import initialize_mcp_integration, get_mcp_manager
-from .mcp_tools import execute_tool, get_available_tools, MCPToolError
+from .database import init_database
+from .mcp_integration import get_mcp_manager, initialize_mcp_integration
+from .mcp_tools import execute_tool, get_available_tools
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('/tmp/waygate_mcp.log'), logging.StreamHandler()]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("/tmp/waygate_mcp.log"), logging.StreamHandler()],
 )
-logger = logging.getLogger("waygate_mcp")
 
 # Environment configuration
 WAYGATE_MODE = os.getenv("WAYGATE_MODE", "development")
@@ -55,14 +55,14 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
 )
 
-logger = structlog.get_logger()
+logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 class WaygateSettings(BaseSettings):
@@ -75,8 +75,12 @@ class WaygateSettings(BaseSettings):
 
     # Paths
     base_dir: Path = Field(default=Path("/home/jeremy"), alias="WAYGATE_BASE_DIR")
-    projects_dir: Path = Field(default=Path("/home/jeremy/projects"), alias="WAYGATE_PROJECTS_DIR")
-    data_dir: Path = Field(default=Path("/home/jeremy/.waygate/data"), alias="WAYGATE_DATA_DIR")
+    projects_dir: Path = Field(
+        default=Path("/home/jeremy/projects"), alias="WAYGATE_PROJECTS_DIR"
+    )
+    data_dir: Path = Field(
+        default=Path("/home/jeremy/.waygate/data"), alias="WAYGATE_DATA_DIR"
+    )
 
     # Server
     host: str = Field(default="0.0.0.0", alias="WAYGATE_HOST")
@@ -85,22 +89,23 @@ class WaygateSettings(BaseSettings):
     reload: bool = Field(default=False, alias="WAYGATE_RELOAD")
 
     # Security
-    secret_key: str = Field(default=None, alias="WAYGATE_SECRET_KEY")
+    secret_key: str = Field(
+        default_factory=lambda: secrets.token_hex(32), alias="WAYGATE_SECRET_KEY"
+    )
     api_key: Optional[str] = Field(default=None, alias="WAYGATE_API_KEY")
-    cors_origins: list = Field(default=["http://localhost:3000"], alias="WAYGATE_CORS_ORIGINS")
+    cors_origins: list = Field(
+        default=["http://localhost:3000"], alias="WAYGATE_CORS_ORIGINS"
+    )
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        populate_by_name = True
-        extra = "ignore"  # Ignore extra environment variables
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
-    def __post_init__(self):
-        """Generate secure secret key if none provided and validate environment"""
-        if self.secret_key is None:
-            self.secret_key = secrets.token_hex(32)
-            logger.warning("No secret key provided, generated secure random key")
-
+    def model_post_init(self, context: Any) -> None:
+        """Create configured directories and validate the loaded settings."""
         # Validate and create directories
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.projects_dir.mkdir(parents=True, exist_ok=True)
@@ -108,7 +113,7 @@ class WaygateSettings(BaseSettings):
         # Validate environment
         self._validate_environment()
 
-    def _validate_environment(self):
+    def _validate_environment(self) -> bool:
         """Validate environment configuration"""
         warnings = []
 
@@ -121,11 +126,15 @@ class WaygateSettings(BaseSettings):
 
         # Check host binding
         if self.host == "0.0.0.0" and self.env == "production":
-            warnings.append("Binding to 0.0.0.0 in production - ensure firewall configured")
+            warnings.append(
+                "Binding to 0.0.0.0 in production - ensure firewall configured"
+            )
 
         # Check CORS origins
         if "localhost" in str(self.cors_origins) and self.env == "production":
-            warnings.append("CORS allows localhost in production - potential security risk")
+            warnings.append(
+                "CORS allows localhost in production - potential security risk"
+            )
 
         # Log warnings
         for warning in warnings:
@@ -136,6 +145,7 @@ class WaygateSettings(BaseSettings):
 
 class MCPCommand(BaseModel):
     """MCP Command model"""
+
     action: str = Field(..., description="Command action to execute")
     params: Dict[str, Any] = Field(default={}, description="Command parameters")
     context: Optional[Dict[str, Any]] = Field(None, description="Execution context")
@@ -144,8 +154,9 @@ class MCPCommand(BaseModel):
 
 class MCPResponse(BaseModel):
     """MCP Response model"""
+
     status: str = Field(..., description="Command execution status")
-    result: Optional[Any] = Field(None, description="Command result")
+    result: Optional[Any] = None
     error: Optional[str] = Field(None, description="Error message if failed")
     duration_ms: int = Field(..., description="Execution duration in milliseconds")
     command_id: str = Field(..., description="Unique command identifier")
@@ -154,6 +165,7 @@ class MCPResponse(BaseModel):
 
 class HealthCheck(BaseModel):
     """Health check response model"""
+
     status: str
     checks: Dict[str, str]
     version: str = "2.0.0"
@@ -164,7 +176,7 @@ class HealthCheck(BaseModel):
 class WaygateServer:
     """Main Waygate MCP Server"""
 
-    def __init__(self, settings: WaygateSettings):
+    def __init__(self, settings: WaygateSettings) -> None:
         self.settings = settings
         self.app = self._create_app()
         self.logger = logger.bind(component="server")
@@ -174,7 +186,9 @@ class WaygateServer:
         """Create FastAPI application"""
         app = FastAPI(
             title="Waygate MCP",
-            description="Enterprise-grade MCP Server Framework - Successor to NEXUS MCP",
+            description=(
+                "Enterprise-grade MCP Server Framework - Successor to NEXUS MCP"
+            ),
             version="2.0.0",
             docs_url="/docs" if self.settings.env == "development" else None,
             redoc_url="/redoc" if self.settings.env == "development" else None,
@@ -198,20 +212,26 @@ class WaygateServer:
 
         return app
 
-    async def _http_exception_handler(self, request, exc: HTTPException):
+    async def _http_exception_handler(
+        self, request: Request, exc: Exception
+    ) -> JSONResponse:
         """Handle HTTP exceptions"""
+        if not isinstance(exc, HTTPException):
+            return await self._general_exception_handler(request, exc)
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "error": {
                     "message": exc.detail,
                     "status_code": exc.status_code,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
-            }
+            },
         )
 
-    async def _general_exception_handler(self, request, exc: Exception):
+    async def _general_exception_handler(
+        self, request: Request, exc: Exception
+    ) -> JSONResponse:
         """Handle general exceptions"""
         self.logger.error("unhandled_exception", error=str(exc), exc_info=True)
         return JSONResponse(
@@ -219,16 +239,16 @@ class WaygateServer:
             content={
                 "error": {
                     "message": "Internal server error",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
-            }
+            },
         )
 
-    def _setup_routes(self, app: FastAPI):
+    def _setup_routes(self, app: FastAPI) -> None:
         """Setup API routes"""
 
         @app.get("/", tags=["Core"])
-        async def root():
+        async def root() -> Dict[str, Any]:
             """Root endpoint - service information"""
             return {
                 "service": "Waygate MCP",
@@ -236,11 +256,13 @@ class WaygateServer:
                 "status": "operational",
                 "mode": self.settings.mode,
                 "description": "Enterprise-grade MCP Server Framework",
-                "documentation": "/docs" if self.settings.env == "development" else None
+                "documentation": (
+                    "/docs" if self.settings.env == "development" else None
+                ),
             }
 
         @app.get("/health", response_model=HealthCheck, tags=["Core"])
-        async def health():
+        async def health() -> HealthCheck:
             """Health check endpoint"""
             uptime = int((datetime.utcnow() - self.start_time).total_seconds())
             return HealthCheck(
@@ -249,19 +271,19 @@ class WaygateServer:
                     "database": "ok",
                     "cache": "ok",
                     "filesystem": "ok",
-                    "plugins": "ok"
+                    "plugins": "ok",
                 },
-                uptime_seconds=uptime
+                uptime_seconds=uptime,
             )
 
         @app.get("/ready", tags=["Core"])
-        async def ready():
+        async def ready() -> Dict[str, Any]:
             """Readiness check endpoint"""
             # Add actual readiness checks here
             return {"ready": True}
 
         @app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
-        async def metrics():
+        async def metrics() -> str:
             """Prometheus metrics endpoint"""
             # This would integrate with prometheus_client
             metrics_data = [
@@ -275,17 +297,17 @@ class WaygateServer:
                 "",
                 "# HELP waygate_response_time_seconds Response time in seconds",
                 "# TYPE waygate_response_time_seconds histogram",
-                "waygate_response_time_seconds_bucket{le=\"0.1\"} 0",
-                "waygate_response_time_seconds_bucket{le=\"0.5\"} 0",
-                "waygate_response_time_seconds_bucket{le=\"1.0\"} 0",
-                "waygate_response_time_seconds_bucket{le=\"+Inf\"} 0",
+                'waygate_response_time_seconds_bucket{le="0.1"} 0',
+                'waygate_response_time_seconds_bucket{le="0.5"} 0',
+                'waygate_response_time_seconds_bucket{le="1.0"} 0',
+                'waygate_response_time_seconds_bucket{le="+Inf"} 0',
                 "waygate_response_time_seconds_count 0",
-                "waygate_response_time_seconds_sum 0"
+                "waygate_response_time_seconds_sum 0",
             ]
             return "\n".join(metrics_data)
 
         @app.post("/mcp/execute", response_model=MCPResponse, tags=["MCP"])
-        async def execute_mcp(command: MCPCommand):
+        async def execute_mcp(command: MCPCommand) -> MCPResponse:
             """Execute MCP command using real tool handlers"""
             start_time = datetime.utcnow()
             command_id = f"cmd_{start_time.timestamp()}"
@@ -294,55 +316,56 @@ class WaygateServer:
                 "executing_command",
                 command_id=command_id,
                 action=command.action,
-                params=command.params
+                params=command.params,
             )
 
             try:
                 # Execute actual MCP tool
                 result = await execute_tool(command.action, command.params)
 
-                duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                duration_ms = int(
+                    (datetime.utcnow() - start_time).total_seconds() * 1000
+                )
 
                 return MCPResponse(
                     status=result["status"],
                     result=result.get("result"),
                     error=result.get("error"),
                     duration_ms=duration_ms,
-                    command_id=command_id
+                    command_id=command_id,
                 )
 
             except Exception as e:
-                duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                duration_ms = int(
+                    (datetime.utcnow() - start_time).total_seconds() * 1000
+                )
                 self.logger.error("command_failed", command_id=command_id, error=str(e))
 
                 return MCPResponse(
                     status="failed",
                     error=str(e),
                     duration_ms=duration_ms,
-                    command_id=command_id
+                    command_id=command_id,
                 )
 
         @app.get("/mcp/status", tags=["MCP"])
-        async def mcp_status():
+        async def mcp_status() -> Dict[str, Any]:
             """Get MCP engine status"""
             return {
                 "engine": "operational",
                 "plugins_loaded": 0,
                 "commands_available": ["test", "echo", "status"],
-                "protocol_version": "1.0"
+                "protocol_version": "1.0",
             }
 
         @app.get("/plugins", tags=["Plugins"])
-        async def list_plugins():
+        async def list_plugins() -> Dict[str, Any]:
             """List loaded plugins"""
             # TODO: Implement plugin registry
-            return {
-                "plugins": [],
-                "total": 0
-            }
+            return {"plugins": [], "total": 0}
 
         @app.post("/plugins/reload", tags=["Plugins"])
-        async def reload_plugins():
+        async def reload_plugins() -> Dict[str, Any]:
             """Reload all plugins"""
             self.logger.info("reloading_plugins")
             # TODO: Implement plugin reloading
@@ -350,7 +373,7 @@ class WaygateServer:
 
         # MCP Integration Endpoints
         @app.get("/mcp/servers", tags=["MCP"])
-        async def list_mcp_servers():
+        async def list_mcp_servers() -> Dict[str, Any]:
             """List all integrated MCP servers"""
             try:
                 mcp_manager = await get_mcp_manager()
@@ -361,7 +384,7 @@ class WaygateServer:
                 raise HTTPException(status_code=500, detail=str(e))
 
         @app.get("/mcp/tools", tags=["MCP"])
-        async def list_mcp_tools():
+        async def list_mcp_tools() -> Dict[str, Any]:
             """List all available MCP tools"""
             try:
                 # Get local tools
@@ -373,7 +396,9 @@ class WaygateServer:
                     mcp_manager = await get_mcp_manager()
                     external_tools = await mcp_manager.get_all_mcp_tools()
                 except Exception as e:
-                    self.logger.warning("Could not get external MCP tools", error=str(e))
+                    self.logger.warning(
+                        "Could not get external MCP tools", error=str(e)
+                    )
 
                 # Flatten all tools for easier access
                 all_tools = []
@@ -393,14 +418,14 @@ class WaygateServer:
                     "total_tools": len(all_tools),
                     "local_tools": local_tools,
                     "external_tools": external_tools,
-                    "all_tools": all_tools
+                    "all_tools": all_tools,
                 }
             except Exception as e:
                 self.logger.error("mcp_tools_list_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
         @app.post("/mcp/tools/execute", tags=["MCP"])
-        async def execute_mcp_tool(request: dict):
+        async def execute_mcp_tool(request: dict) -> Dict[str, Any]:
             """Execute a tool on a specific MCP server"""
             try:
                 server_name = request.get("server_name")
@@ -409,8 +434,7 @@ class WaygateServer:
 
                 if not server_name or not tool_name:
                     raise HTTPException(
-                        status_code=400,
-                        detail="server_name and tool_name are required"
+                        status_code=400, detail="server_name and tool_name are required"
                     )
 
                 mcp_manager = await get_mcp_manager()
@@ -420,38 +444,44 @@ class WaygateServer:
 
                 return result
 
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error("mcp_tool_execution_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
         @app.post("/mcp/servers/{server_name}/reload", tags=["MCP"])
-        async def reload_mcp_server(server_name: str):
+        async def reload_mcp_server(server_name: str) -> Dict[str, Any]:
             """Reload a specific MCP server"""
             try:
                 mcp_manager = await get_mcp_manager()
                 success = await mcp_manager.reload_mcp_server(server_name)
 
                 if success:
-                    return {"status": "success", "message": f"MCP server {server_name} reloaded"}
+                    return {
+                        "status": "success",
+                        "message": f"MCP server {server_name} reloaded",
+                    }
                 else:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Failed to reload MCP server: {server_name}"
+                        detail=f"Failed to reload MCP server: {server_name}",
                     )
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error("mcp_server_reload_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
         @app.get("/mcp/servers/{server_name}/tools", tags=["MCP"])
-        async def get_mcp_server_tools(server_name: str):
+        async def get_mcp_server_tools(server_name: str) -> Dict[str, Any]:
             """Get tools for a specific MCP server"""
             try:
                 mcp_manager = await get_mcp_manager()
 
                 if server_name not in mcp_manager.mcp_servers:
                     raise HTTPException(
-                        status_code=404,
-                        detail=f"MCP server not found: {server_name}"
+                        status_code=404, detail=f"MCP server not found: {server_name}"
                     )
 
                 server_info = mcp_manager.mcp_servers[server_name]
@@ -462,30 +492,30 @@ class WaygateServer:
                     "server_name": server_name,
                     "server_type": server_info["config"]["server_type"],
                     "tool_count": len(tools),
-                    "tools": tools
+                    "tools": tools,
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error("mcp_server_tools_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
         @app.get("/diagnostics/connection", tags=["Diagnostics"])
-        async def connection_diagnostics():
+        async def connection_diagnostics() -> Dict[str, Any]:
             """Run connection diagnostics"""
             return {
                 "server": "running",
                 "port": self.settings.port,
-                "connections": {
-                    "active": 0,
-                    "total": 0
-                },
-                "timestamp": datetime.utcnow().isoformat()
+                "connections": {"active": 0, "total": 0},
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         @app.get("/diagnostics/performance", tags=["Diagnostics"])
-        async def performance_diagnostics():
+        async def performance_diagnostics() -> Dict[str, Any]:
             """Run performance diagnostics"""
             import psutil
+
             process = psutil.Process()
 
             return {
@@ -495,17 +525,17 @@ class WaygateServer:
                     "vms_mb": process.memory_info().vms / 1024 / 1024,
                 },
                 "threads": process.num_threads(),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the server"""
         self.logger.info(
             "starting_waygate",
             mode=self.settings.mode,
             host=self.settings.host,
             port=self.settings.port,
-            environment=self.settings.env
+            environment=self.settings.env,
         )
 
         # Initialize database (with fallback)
@@ -513,14 +543,18 @@ class WaygateServer:
             await init_database()
             self.logger.info("Database initialized successfully")
         except Exception as e:
-            self.logger.warning(f"Database initialization failed, continuing without database: {str(e)}")
+            self.logger.warning(
+                f"Database initialization failed, continuing without database: {str(e)}"
+            )
 
         # Initialize MCP integration system (optional)
         try:
             await initialize_mcp_integration()
             self.logger.info("MCP integration initialized successfully")
         except Exception as e:
-            self.logger.warning(f"MCP integration failed, continuing with local tools only: {str(e)}")
+            self.logger.warning(
+                f"MCP integration failed, continuing with local tools only: {str(e)}"
+            )
 
         config = uvicorn.Config(
             app=self.app,
@@ -528,41 +562,43 @@ class WaygateServer:
             port=self.settings.port,
             reload=self.settings.reload,
             log_level=self.settings.log_level.lower(),
-            access_log=True
+            access_log=True,
         )
 
         server = uvicorn.Server(config)
         await server.serve()
 
-    def run(self):
+    def run(self) -> None:
         """Run the server synchronously"""
         asyncio.run(self.start())
 
 
 @click.command()
-@click.option('--host', default='0.0.0.0', help='Host to bind to')
-@click.option('--port', default=8000, type=int, help='Port to bind to')
-@click.option('--reload', is_flag=True, help='Enable auto-reload')
-@click.option('--workers', default=1, type=int, help='Number of workers')
-@click.option('--env', default='development', help='Environment (development/production)')
-def main(host: str, port: int, reload: bool, workers: int, env: str):
+@click.option("--host", default="0.0.0.0", help="Host to bind to")
+@click.option("--port", default=8000, type=int, help="Port to bind to")
+@click.option("--reload", is_flag=True, help="Enable auto-reload")
+@click.option("--workers", default=1, type=int, help="Number of workers")
+@click.option(
+    "--env", default="development", help="Environment (development/production)"
+)
+def main(host: str, port: int, reload: bool, workers: int, env: str) -> None:
     """Waygate MCP Server CLI
 
     Enterprise-grade MCP Server Framework - Successor to NEXUS MCP
     """
 
     settings = WaygateSettings(
-        host=host,
-        port=port,
-        reload=reload,
-        workers=workers,
-        env=env
+        WAYGATE_HOST=host,
+        WAYGATE_PORT=port,
+        WAYGATE_RELOAD=reload,
+        WAYGATE_WORKERS=workers,
+        WAYGATE_ENV=env,
     )
 
     server = WaygateServer(settings)
 
     # Handle shutdown signals gracefully
-    def handle_signal(signum, frame):
+    def handle_signal(signum: int, frame: FrameType | None) -> None:
         logger.info("shutdown_signal_received", signal=signum)
         sys.exit(0)
 

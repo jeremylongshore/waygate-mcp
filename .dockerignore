@@ -1,0 +1,12 @@
+# Send only runtime source and container build inputs to the builder.
+**
+!source/
+!source/**
+!deployment/
+!deployment/Dockerfile
+!deployment/scripts/
+!deployment/scripts/docker-entrypoint.sh
+source/**/__pycache__/
+source/tests/
+source/**/.env*
+source/**/*.pyc

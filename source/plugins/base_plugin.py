@@ -3,7 +3,8 @@ Base Plugin Class - Inherit from this to create your own plugins
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 
 class BasePlugin(ABC):
     """
@@ -16,7 +17,7 @@ class BasePlugin(ABC):
     4. Drop it in the plugins folder - it auto-loads!
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name = self.__class__.__name__
         self.version = "1.0.0"
         self.description = "A Waygate MCP Plugin"
@@ -41,7 +42,9 @@ class BasePlugin(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Execute a tool from this plugin.
 
@@ -54,12 +57,12 @@ class BasePlugin(ABC):
         """
         pass
 
-    def get_info(self) -> Dict[str, str]:
+    def get_info(self) -> Dict[str, Any]:
         """
         Get plugin information.
         """
         return {
             "name": self.name,
             "version": self.version,
-            "description": self.description
+            "description": self.description,
         }
