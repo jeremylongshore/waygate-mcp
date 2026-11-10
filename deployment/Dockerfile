@@ -1,9 +1,8 @@
 # Dockerfile
 # Security-hardened multi-stage build for Waygate MCP
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS builder
 
 # Security: Pin specific versions for reproducibility
-ARG PYTHON_VERSION=3.12.1
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=2.0.0
@@ -44,7 +43,7 @@ RUN pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
 #
 # Production stage - Minimal attack surface
 #
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
 # Security: Install security updates immediately
 RUN apt-get update && \
