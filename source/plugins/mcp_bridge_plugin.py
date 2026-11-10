@@ -125,6 +125,7 @@ class MCPBridgePlugin(BasePlugin):
             logger.error(f"❌ {error_msg}")
             self.mcp_status["last_error"] = error_msg
             self.mcp_status["error_count"] += 1
+            await self.cleanup()
             raise MCPCommunicationError(error_msg)
 
     async def initialize_mcp_client(self) -> None:
@@ -409,6 +410,10 @@ class MCPBridgePlugin(BasePlugin):
         except Exception as e:
             logger.error(f"❌ Tool sync failed: {e}")
             self.mcp_tools = []
+            self.mcp_status["tool_count"] = 0
+            self.mcp_status["connected"] = False
+            self.is_initialized = False
+            raise MCPCommunicationError(f"Tool sync failed: {e}") from e
 
     async def _get_stdio_tools(self) -> List[Dict[str, Any]]:
         """Get tools via stdio communication"""
@@ -429,7 +434,9 @@ class MCPBridgePlugin(BasePlugin):
         response_line = await self.process.stdout.readline()
         response = json.loads(response_line.decode().strip())
 
-        return tool_definitions(response.get("result", {}).get("tools", []))
+        if "error" in response:
+            raise MCPCommunicationError(f"MCP server error: {response['error']}")
+        return tool_definitions(response.get("result", {}).get("tools"))
 
     async def _get_http_tools(self) -> List[Dict[str, Any]]:
         """Get tools via HTTP API"""
@@ -481,14 +488,13 @@ class MCPBridgePlugin(BasePlugin):
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            logger.error(f"Failed to get tools: {stderr.decode()}")
-            return []
+            raise MCPCommunicationError(f"Failed to get tools: {stderr.decode()}")
 
         try:
             result = json.loads(stdout.decode())
-            return tool_definitions(result.get("tools", []))
-        except json.JSONDecodeError:
-            return []
+            return tool_definitions(result.get("tools"))
+        except json.JSONDecodeError as e:
+            raise MCPCommunicationError("Invalid tool catalog JSON") from e
 
     async def _load_credentials(self) -> None:
         """Load credentials from configuration"""
