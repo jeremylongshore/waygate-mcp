@@ -38,7 +38,7 @@ WORKDIR /build
 # Copy and install dependencies as non-root
 COPY --chown=builder:builder ./source/requirements-docker.txt ./
 RUN pip install --user --no-cache-dir --upgrade pip wheel setuptools && \
-    pip wheel --no-cache-dir --wheel-dir /build/wheels -r requirements-docker.txt
+    pip wheel --require-hashes --no-cache-dir --wheel-dir /build/wheels -r requirements-docker.txt
 
 #
 # Production stage - Minimal attack surface

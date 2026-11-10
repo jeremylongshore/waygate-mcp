@@ -1,0 +1,12 @@
+{
+  "osv": {
+    "finding_count": 463,
+    "blocking_finding_count": 262,
+    "supported_input_count": 14
+  },
+  "finding_sources": [
+    "04-assets/configs/development/requirements-proxy.txt",
+    "source-backup-092925/requirements-proxy.txt",
+    "source/requirements-proxy.txt"
+  ]
+}

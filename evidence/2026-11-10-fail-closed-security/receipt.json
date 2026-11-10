@@ -1,0 +1,114 @@
+{
+  "command": "python ci/security_scan.py --output EXTERNAL_NEW_DIRECTORY",
+  "exit_code": 1,
+  "gates": [
+    {
+      "gate_id": "audit-harness:ci:cve-osv",
+      "result": "FAIL",
+      "failure_mode": "scan:osv-scanner-policy-findings",
+      "input_hash": "sha256:875f7326cfae7219c61ecdc54bf936cee35e082a54b09ba9739181e1e151925a",
+      "policy_hash": "sha256:991b035cb2ad2d559594b828fcc38efc2acaa140ee66caf15e72de51eedec515",
+      "timestamp": "2026-11-10T10:10:56Z",
+      "measurement": {
+        "tool": "osv-scanner",
+        "tool_version": "osv-scanner version: 2.5.1\nosv-scalibr version: 0.5.2\ncommit: c84fa4568f2526d0333e9a914ea8a0a5f74ad68b\nbuilt at: 2026-08-17T03:44:26Z",
+        "scanner_exit_code": 1,
+        "finding_count": 993,
+        "blocking_finding_count": 538,
+        "supported_input_count": 14
+      }
+    },
+    {
+      "gate_id": "audit-harness:ci:sast",
+      "result": "FAIL",
+      "failure_mode": "scan:semgrep-findings",
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:46e00e261b6a5ce4d18c7cf3af3632f3412f07411f31723ea7125cbcf407479f",
+      "timestamp": "2026-11-10T10:11:04Z",
+      "measurement": {
+        "tool": "semgrep",
+        "tool_version": "1.178.0",
+        "scanner_exit_code": 1,
+        "measurement_status": "findings",
+        "finding_count": 6
+      }
+    },
+    {
+      "gate_id": "audit-harness:ci:sbom-syft",
+      "result": "PASS",
+      "failure_mode": null,
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:f94fdc5c5796a25b92f9c80a38d36d2acf05c05a46cfe7d24d970132129c10e1",
+      "timestamp": "2026-11-10T10:11:07Z",
+      "measurement": {
+        "tool": "syft",
+        "tool_version": "1.57.1",
+        "scanner_exit_code": 0,
+        "measurement_status": "generated"
+      }
+    },
+    {
+      "gate_id": "audit-harness:ci:secrets-gitleaks",
+      "result": "FAIL",
+      "failure_mode": "scan:gitleaks-findings",
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:ce8f38d458cbceb4d8ff460aa16983811706f8e83f561c4c90974fe0cd3f53d3",
+      "timestamp": "2026-11-10T10:11:09Z",
+      "measurement": {
+        "tool": "gitleaks",
+        "tool_version": "8.30.1",
+        "scanner_exit_code": 10,
+        "measurement_status": "findings",
+        "finding_count": 13
+      }
+    },
+    {
+      "gate_id": "audit-harness:local:hygiene-links",
+      "result": "ADVISORY",
+      "failure_mode": null,
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:a7df1110230efdf61dba60a84e100226eb30a92426a08b494a204e7f0343a964",
+      "timestamp": "2026-11-10T10:11:09Z",
+      "measurement": {
+        "tool": "lychee"
+      }
+    },
+    {
+      "gate_id": "audit-harness:local:hygiene-markdown",
+      "result": "ADVISORY",
+      "failure_mode": null,
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:b1e38295a01711a4869a9bad29eb23904f4c053374024f68f327059f411b6812",
+      "timestamp": "2026-11-10T10:11:09Z",
+      "measurement": {
+        "indeterminate": true
+      }
+    },
+    {
+      "gate_id": "audit-harness:local:hygiene-readme",
+      "result": "PASS",
+      "failure_mode": null,
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:e23dae057fbae8822137804b7aa4b9c9075d750622a5310534e64b1d130eac59",
+      "timestamp": "2026-11-10T10:11:09Z",
+      "measurement": {}
+    },
+    {
+      "gate_id": "audit-harness:server:skill-behavioral",
+      "result": "ADVISORY",
+      "failure_mode": null,
+      "input_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "policy_hash": "sha256:143c92e31406252fb36ef88b8e738d01cd580c8e4dcfe7f89d041c3b79f0e0b7",
+      "timestamp": "2026-11-10T10:11:09Z",
+      "measurement": {
+        "indeterminate": true
+      }
+    }
+  ],
+  "full_report_sha256": {
+    "sbom.json": "5bce6d2b67e9970381c5e5bea5c42b253786583f1991e1064f00cb5adaf01a16",
+    "gate-results.json": "99ed82b7f03b66a70064cbfbc5bbbd0d5f780f91bb1b1ad43cf31aaf7d48610f",
+    "preflight.json": "98716c118a614ad1c9925682ed96c4124349c8392e18af086ad43e32dcb9f60b",
+    "bandit.json": "dd639902cc587857ed04a3e6b4475fb6612a42a7e885282393d2267fff111ec3"
+  }
+}

@@ -65,11 +65,15 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 
 # Install dependencies
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 
 # Start full MCP server with all tools
 python -m source.waygate_mcp --port 8000 --env production
 ```
+
+This install file includes the complete server dependency graph and the retained
+analytics packages. See [dependency profiles](ci/dependencies/README.md) for the
+standard, container and development locks and their regeneration procedure.
 
 ### 2. Verify Complete Functionality
 ```bash
@@ -270,3 +274,20 @@ waygate-mcp/
 ---
 
 *Created by Intent Solutions Inc - Building foundational AI infrastructure*
+
+### Local network, logging and file-tool defaults
+
+Both server entrypoints bind to `127.0.0.1` by default. Set `WAYGATE_HOST` or
+pass `--host` when remote access is intended. Docker Compose explicitly binds
+inside its container; its published ports still determine host exposure.
+
+File tools no longer grant access to shared temporary directories. An unset
+`WAYGATE_SCRATCH_DIR` creates an isolated private temporary directory for the
+handler lifetime. For a predictable scratch location, configure an absolute path
+owned by the service user with permissions `0700`; the server creates it if absent
+and refuses a symlink, wrong owner or incompatible permissions. Compose uses
+`/app/tmp/tools`. Existing configured project roots remain available. This path
+validation is not a complete filesystem sandbox or a claim of race-free isolation.
+
+The main server writes logs to stderr instead of a predictable file in shared
+temporary storage. Collect them through the service manager or `docker compose logs`.

@@ -1,0 +1,7 @@
+# Preserve the additional packages exposed by the original root installer.
+flask>=2.3.0
+requests>=2.31.0
+json5>=0.9.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0

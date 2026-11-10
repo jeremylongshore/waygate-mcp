@@ -1,0 +1,54 @@
+{
+  "findings": [
+    {
+      "filename": "source/mcp_tools.py",
+      "line_number": 52,
+      "test_id": "B108",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/mcp_tools.py",
+      "line_number": 53,
+      "test_id": "B108",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/waygate_mcp.py",
+      "line_number": 39,
+      "test_id": "B108",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/waygate_mcp.py",
+      "line_number": 86,
+      "test_id": "B104",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/waygate_mcp.py",
+      "line_number": 128,
+      "test_id": "B104",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/waygate_mcp.py",
+      "line_number": 577,
+      "test_id": "B104",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    },
+    {
+      "filename": "source/waygate_simple.py",
+      "line_number": 142,
+      "test_id": "B104",
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "MEDIUM"
+    }
+  ],
+  "analysis_errors": 0
+}

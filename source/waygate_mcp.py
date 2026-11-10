@@ -5,6 +5,7 @@ Successor to NEXUS MCP with stdio-based communication
 """
 
 import asyncio
+import ipaddress
 import logging
 import os
 import secrets
@@ -38,7 +39,7 @@ log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("/tmp/waygate_mcp.log"), logging.StreamHandler()],
+    handlers=[logging.StreamHandler()],
 )
 
 # Environment configuration
@@ -84,7 +85,7 @@ class WaygateSettings(BaseSettings):
     )
 
     # Server
-    host: str = Field(default="0.0.0.0", alias="WAYGATE_HOST")
+    host: str = Field(default="127.0.0.1", alias="WAYGATE_HOST")
     port: int = Field(default=8000, alias="WAYGATE_PORT")
     workers: int = Field(default=4, alias="WAYGATE_WORKERS")
     reload: bool = Field(default=False, alias="WAYGATE_RELOAD")
@@ -126,9 +127,13 @@ class WaygateSettings(BaseSettings):
             warnings.append("Using Turso database - ensure connectivity")
 
         # Check host binding
-        if self.host == "0.0.0.0" and self.env == "production":
+        try:
+            unspecified = ipaddress.ip_address(self.host).is_unspecified
+        except ValueError:
+            unspecified = False  # Hostnames are resolved by the server.
+        if unspecified and self.env == "production":
             warnings.append(
-                "Binding to 0.0.0.0 in production - ensure firewall configured"
+                "Binding all network interfaces - ensure firewall configured"
             )
 
         # Check CORS origins
@@ -575,7 +580,9 @@ class WaygateServer:
 
 
 @click.command()
-@click.option("--host", default="0.0.0.0", help="Host to bind to")
+@click.option(
+    "--host", default="127.0.0.1", envvar="WAYGATE_HOST", help="Host to bind to"
+)
 @click.option("--port", default=8000, type=int, help="Port to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload")
 @click.option("--workers", default=1, type=int, help="Number of workers")
