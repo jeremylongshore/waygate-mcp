@@ -16,7 +16,11 @@ from fastapi.testclient import TestClient
 def server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     monkeypatch.delenv("WAYGATE_SECRET_KEY", raising=False)
+    monkeypatch.setenv("MCP_SERVERS_ENABLED", "")
     module = importlib.import_module("source.waygate_mcp")
+    monkeypatch.setattr(
+        module.db_manager, "execute_query", AsyncMock(return_value=[{"count": 5}])
+    )
     settings = module.WaygateSettings(
         WAYGATE_DATA_DIR=tmp_path / "data",
         WAYGATE_PROJECTS_DIR=tmp_path / "projects",

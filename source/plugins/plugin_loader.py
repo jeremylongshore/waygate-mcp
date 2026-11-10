@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import inspect
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -74,8 +76,19 @@ class PluginLoader:
 
         try:
             for file_path in self.plugins_directory.glob("*_plugin.py"):
-                if file_path.name not in ["__init__.py", "base_plugin.py"]:
+                if file_path.name not in [
+                    "__init__.py",
+                    "base_plugin.py",
+                    "mcp_bridge_plugin.py",
+                ]:
                     plugin_name = file_path.stem
+                    if plugin_name.endswith("_mcp_plugin") and plugin_name.removesuffix(
+                        "_mcp_plugin"
+                    ) not in {
+                        name.strip()
+                        for name in os.getenv("MCP_SERVERS_ENABLED", "").split(",")
+                    }:
+                        continue
                     plugin_files.append(plugin_name)
                     logger.debug(f"📦 Discovered plugin: {plugin_name}")
 
@@ -116,6 +129,8 @@ class PluginLoader:
                     isinstance(attr, type)
                     and issubclass(attr, BasePlugin)
                     and attr != BasePlugin
+                    and not inspect.isabstract(attr)
+                    and attr.__module__ == module.__name__
                 ):
                     plugin_class = attr
                     break
@@ -130,7 +145,10 @@ class PluginLoader:
             await self._load_plugin_config(plugin_name, plugin_instance)
 
             # Initialize plugin if it has initialization method
-            if hasattr(plugin_instance, "initialize"):
+            # MCP clients start only after integration applies provider configuration.
+            if hasattr(plugin_instance, "initialize") and not plugin_name.endswith(
+                "_mcp_plugin"
+            ):
                 await plugin_instance.initialize()
 
             # Store the loaded plugin

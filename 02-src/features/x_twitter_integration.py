@@ -333,7 +333,7 @@ def get_x_twitter_tools() -> List[Dict[str, Any]]:
         if result["success"]:
             for tool in tools:
                 tool["oauth1a_alternative"] = f"{tool['name']}_oauth1a"
-    except:
-        pass
+    except ImportError:
+        logger.debug("Optional OAuth 1.0a integration is unavailable")
 
     return tools

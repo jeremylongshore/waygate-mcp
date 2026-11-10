@@ -298,8 +298,8 @@ class MCPToolsHandler:
                             if query.lower() in content.lower():
                                 match_found = True
                                 match_type.append("content")
-                        except:
-                            pass  # Skip binary files or unreadable files
+                        except (OSError, UnicodeError):
+                            logger.debug("Skipping an unreadable search candidate")
 
                     if match_found:
                         file_info = self._get_file_info(file_path)

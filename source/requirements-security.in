@@ -1,0 +1,6 @@
+# Optional package metadata retained for compatibility.
+# CI scanners use their separate, integrity-checked tool environments.
+bandit[toml]>=1.7.5
+safety>=2.3.5
+pip-audit>=2.6.1
+semgrep>=1.38.0

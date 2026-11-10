@@ -65,11 +65,15 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 
 # Install dependencies
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 
 # Start full MCP server with all tools
 python -m source.waygate_mcp --port 8000 --env production
 ```
+
+This install file includes the complete server dependency graph and the retained
+analytics packages. See [dependency profiles](ci/dependencies/README.md) for the
+standard, container and development locks and their regeneration procedure.
 
 ### 2. Verify Complete Functionality
 ```bash
@@ -270,3 +274,35 @@ waygate-mcp/
 ---
 
 *Created by Intent Solutions Inc - Building foundational AI infrastructure*
+
+### Local network, logging and file-tool defaults
+
+Both server entrypoints bind to `127.0.0.1` by default. Set `WAYGATE_HOST` or
+pass `--host` when remote access is intended. Docker Compose explicitly binds
+inside its container; its published ports still determine host exposure.
+
+File tools no longer grant access to shared temporary directories. An unset
+`WAYGATE_SCRATCH_DIR` creates an isolated private temporary directory for the
+handler lifetime. For a predictable scratch location, configure an absolute path
+owned by the service user with permissions `0700`; the server creates it if absent
+and refuses a symlink, wrong owner or incompatible permissions. Compose uses
+`/app/tmp/tools`. Existing configured project roots remain available. This path
+validation is not a complete filesystem sandbox or a claim of race-free isolation.
+
+The main server writes logs to stderr instead of a predictable file in shared
+temporary storage. Collect them through the service manager or `docker compose logs`.
+
+### Provider enablement and readiness
+
+`MCP_SERVERS_ENABLED` is a comma-separated list of required MCP provider types.
+An empty or unset list runs local tools without starting MCP providers. Discovery
+skips disabled providers and abstract bridge classes; enabled clients receive
+configuration before starting. `MCP_AUTO_INITIALIZE=false` disables creation of
+default database configurations, independently of provider enablement.
+
+`/health` and `/ready` query the configured database's configuration table and
+observe enabled-provider startup/connection state. They return HTTP 503 when a
+required check fails; disabled providers are explicitly reported as `disabled`.
+Readiness does not start clients or reconnect them. Provider state reflects the
+last observed connection and process status, not an active upstream availability
+probe. The endpoints do not claim cache or filesystem checks they have not run.

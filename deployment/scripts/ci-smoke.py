@@ -1,6 +1,7 @@
 """Exercise HTTP tool behavior against a disposable CI container."""
 
 import json
+import os
 import sys
 import uuid
 from urllib.request import Request, urlopen
@@ -21,7 +22,8 @@ def request(path, payload=None):
 assert request("/health")["status"] == "healthy"
 names = {tool["name"] for tool in request("/mcp/tools")["local_tools"]}
 assert {"read_file", "write_file"} <= names
-path = f"/tmp/waygate-smoke-{uuid.uuid4().hex}.txt"
+scratch = os.environ.get("WAYGATE_SCRATCH_DIR", "/app/tmp/tools")
+path = f"{scratch}/waygate-smoke-{uuid.uuid4().hex}.txt"
 written = request(
     "/mcp/execute",
     {"action": "write_file", "params": {"path": path, "content": "fixture roundtrip"}},
@@ -35,6 +37,12 @@ refused = request(
 )
 assert refused["status"] == "error", refused
 assert "Path not allowed" in refused["error"], refused
+for shared_path in ["/tmp/unrelated-fixture.txt", "/var/tmp/unrelated-fixture.txt"]:
+    shared = request(
+        "/mcp/execute", {"action": "read_file", "params": {"path": shared_path}}
+    )
+    assert shared["status"] == "error", shared
+    assert "Path not allowed" in shared["error"], shared
 unknown = request("/mcp/execute", {"action": "fixture_unknown_tool"})
 assert unknown["status"] == "error", unknown
 print("PASS: HTTP catalog, file roundtrip, path refusal, unknown-tool refusal")
