@@ -300,6 +300,26 @@ class MCPIntegrationManager:
                 "tool": tool_name,
             }
 
+    def provider_readiness(self) -> Dict[str, str]:
+        """Observe provider state without starting or reconnecting clients."""
+        enabled = {
+            name.strip()
+            for name in os.getenv("MCP_SERVERS_ENABLED", "").split(",")
+            if name.strip()
+        }
+        states = {name: "failed" for name in sorted(enabled)}
+        for info in self.mcp_servers.values():
+            name = info["config"]["server_type"]
+            plugin = info["plugin"]
+            if name in states and self.is_initialized and info["status"] == "active":
+                initialized = getattr(plugin, "is_initialized", True)
+                connection = getattr(plugin, "mcp_status", {})
+                process = getattr(plugin, "process", None)
+                alive = process is None or process.returncode is None
+                if initialized and connection.get("connected", True) and alive:
+                    states[name] = "ok"
+        return states
+
     async def get_mcp_status(self) -> Dict[str, Any]:
         """
         Get status of all MCP servers
@@ -336,8 +356,35 @@ class MCPIntegrationManager:
                     {"name": server_name, "status": "error", "error": str(e)}
                 )
 
+        enabled = {
+            name.strip()
+            for name in os.getenv("MCP_SERVERS_ENABLED", "").split(",")
+            if name.strip()
+        }
+        readiness = self.provider_readiness()
+        active = {
+            server.get("server_type")
+            for server in server_status
+            if server.get("status") == "active"
+            and readiness.get(server.get("server_type", "")) == "ok"
+        }
+        providers = {
+            name: "active" if name in active else "failed" for name in sorted(enabled)
+        }
+        state = "inactive"
+        if self.is_initialized:
+            state = (
+                "disabled"
+                if not enabled
+                else (
+                    "active"
+                    if all(value == "active" for value in providers.values())
+                    else "degraded"
+                )
+            )
         return {
-            "integration_status": "active" if self.is_initialized else "inactive",
+            "integration_status": state,
+            "providers": providers,
             "total_servers": len(self.mcp_servers),
             "active_servers": len(
                 [s for s in server_status if s.get("status") == "active"]

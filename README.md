@@ -291,3 +291,18 @@ validation is not a complete filesystem sandbox or a claim of race-free isolatio
 
 The main server writes logs to stderr instead of a predictable file in shared
 temporary storage. Collect them through the service manager or `docker compose logs`.
+
+### Provider enablement and readiness
+
+`MCP_SERVERS_ENABLED` is a comma-separated list of required MCP provider types.
+An empty or unset list runs local tools without starting MCP providers. Discovery
+skips disabled providers and abstract bridge classes; enabled clients receive
+configuration before starting. `MCP_AUTO_INITIALIZE=false` disables creation of
+default database configurations, independently of provider enablement.
+
+`/health` and `/ready` query the configured database's configuration table and
+observe enabled-provider startup/connection state. They return HTTP 503 when a
+required check fails; disabled providers are explicitly reported as `disabled`.
+Readiness does not start clients or reconnect them. Provider state reflects the
+last observed connection and process status, not an active upstream availability
+probe. The endpoints do not claim cache or filesystem checks they have not run.

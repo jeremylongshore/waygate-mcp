@@ -21,7 +21,7 @@ import structlog
 import uvicorn
 
 # FastAPI and related imports
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -30,8 +30,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from source.version import VERSION as WAYGATE_VERSION
 
 # Waygate MCP modules
-from .database import init_database
-from .mcp_integration import get_mcp_manager, initialize_mcp_integration
+from .database import db_manager, init_database
+from .mcp_integration import (
+    get_mcp_manager,
+    initialize_mcp_integration,
+    mcp_integration_manager,
+)
 from .mcp_tools import execute_tool, get_available_tools
 
 # Configure logging
@@ -268,25 +272,25 @@ class WaygateServer:
             }
 
         @app.get("/health", response_model=HealthCheck, tags=["Core"])
-        async def health() -> HealthCheck:
+        async def health(response: Response) -> HealthCheck:
             """Health check endpoint"""
             uptime = int((datetime.utcnow() - self.start_time).total_seconds())
+            checks = await self._dependency_checks()
+            healthy = all(value in {"ok", "disabled"} for value in checks.values())
+            response.status_code = 200 if healthy else 503
             return HealthCheck(
-                status="healthy",
-                checks={
-                    "database": "ok",
-                    "cache": "ok",
-                    "filesystem": "ok",
-                    "plugins": "ok",
-                },
+                status="healthy" if healthy else "unhealthy",
+                checks=checks,
                 uptime_seconds=uptime,
             )
 
         @app.get("/ready", tags=["Core"])
-        async def ready() -> Dict[str, Any]:
-            """Readiness check endpoint"""
-            # Add actual readiness checks here
-            return {"ready": True}
+        async def ready(response: Response) -> Dict[str, Any]:
+            """Check required dependencies without triggering provider startup."""
+            checks = await self._dependency_checks()
+            ready = all(value in {"ok", "disabled"} for value in checks.values())
+            response.status_code = 200 if ready else 503
+            return {"ready": ready, "checks": checks}
 
         @app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
         async def metrics() -> str:
@@ -533,6 +537,29 @@ class WaygateServer:
                 "threads": process.num_threads(),
                 "timestamp": datetime.utcnow().isoformat(),
             }
+
+    async def _dependency_checks(self) -> Dict[str, str]:
+        """Probe the configured database and observe required provider readiness."""
+        checks = {}
+        try:
+            rows = await asyncio.wait_for(
+                db_manager.execute_query("SELECT COUNT(*) AS count FROM config"),
+                timeout=5,
+            )
+            checks["database"] = "ok" if rows else "failed"
+        except Exception:
+            # Health responses must not disclose connection strings or credentials.
+            checks["database"] = "failed"
+        providers = mcp_integration_manager.provider_readiness()
+        checks["providers"] = (
+            "disabled"
+            if not providers
+            else (
+                "ok" if all(state == "ok" for state in providers.values()) else "failed"
+            )
+        )
+        checks.update({f"provider:{name}": state for name, state in providers.items()})
+        return checks
 
     async def start(self) -> None:
         """Start the server"""
