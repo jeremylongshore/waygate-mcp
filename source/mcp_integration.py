@@ -104,6 +104,7 @@ class MCPIntegrationManager:
 
     async def _load_mcp_server(self, server_type: str) -> None:
         """Load a specific MCP server by type"""
+        server_config = None
         try:
             # Find MCP server configuration by type
             all_servers = await list_mcp_servers()
@@ -142,18 +143,18 @@ class MCPIntegrationManager:
             if hasattr(mcp_plugin, "configure_mcp_server"):
                 await mcp_plugin.configure_mcp_server(server_config)
 
-            # Store the configured MCP server
-            self.mcp_servers[server_config["name"]] = {
-                "config": server_config,
-                "plugin": mcp_plugin,
-                "status": "active",
-            }
-
             # Update database status
             tool_count = len(await mcp_plugin.get_tools())
             await update_mcp_server_status(
                 server_config["name"], "active", tool_count=tool_count
             )
+
+            # Publish only after configuration and tool discovery succeed.
+            self.mcp_servers[server_config["name"]] = {
+                "config": server_config,
+                "plugin": mcp_plugin,
+                "status": "active",
+            }
 
             logger.info(
                 f"✅ MCP server loaded: {server_config['display_name']} "
@@ -367,6 +368,9 @@ class MCPIntegrationManager:
 
             # Reload the server
             await self._load_mcp_server(server_type)
+
+            if server_name not in self.mcp_servers:
+                return False
 
             logger.info(f"✅ MCP server reloaded: {server_name}")
             return True

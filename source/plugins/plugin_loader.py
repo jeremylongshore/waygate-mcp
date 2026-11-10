@@ -459,23 +459,31 @@ class PluginLoader:
             # Update or insert plugin record
             await self.db_manager.execute_query(
                 """
-                INSERT OR REPLACE INTO plugins
-                (name, display_name, version, description, status, error_message,
+                INSERT INTO plugins
+                (name, display_name, version, description, module_path,
+                 status, error_message,
                  last_loaded, load_count, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
-                        COALESCE(
-                            (SELECT load_count FROM plugins WHERE name = ?), 0
-                        ) + 1,
+                VALUES (?, ?, ?, ?, ?, ?, ?,
+                        CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP END,
+                        CASE WHEN ? = 'active' THEN 1 ELSE 0 END,
                         CURRENT_TIMESTAMP)
+                ON CONFLICT(name) DO UPDATE SET
+                    status = excluded.status,
+                    error_message = excluded.error_message,
+                    last_loaded = COALESCE(excluded.last_loaded, plugins.last_loaded),
+                    load_count = plugins.load_count + excluded.load_count,
+                    updated_at = excluded.updated_at
             """,
                 [
                     plugin_name,
                     plugin_info.get("name", plugin_name),
                     plugin_info.get("version", "1.0.0"),
                     plugin_info.get("description", "Waygate MCP Plugin"),
+                    f"{__package__}.{plugin_name}",
                     status,
                     error_message,
-                    plugin_name,
+                    status,
+                    status,
                 ],
             )
 
