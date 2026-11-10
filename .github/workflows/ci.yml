@@ -120,7 +120,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r source/requirements.txt
           pip install -r source/requirements-dev.txt
-          pip install 'pytest==9.1.1' 'pytest-cov==7.1.0' 'pytest-asyncio==1.4.0' 'black==26.5.1' 'isort==9.0.1' 'flake8==7.4.1' 'mypy==2.3.1'
+          pip install 'pytest==9.1.1' 'pytest-cov==7.1.0' 'pytest-asyncio==1.4.0' 'black==26.10.1' 'isort==9.0.1' 'flake8==7.4.1' 'mypy==2.3.1'
 
       - name: 🎨 Code formatting check
         run: |
