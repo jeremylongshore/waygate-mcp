@@ -1,3 +1,14 @@
+# Release v2.2.2
+
+**Release Date**: 2026-11-10
+
+## Changes since v2.2.1
+
+- chore: release v2.2.2 [skip ci] (6852235)
+- fix: require explicit Firebase deployment targets (#7) (69788d0)
+
+---
+
 # Release v2.2.1
 
 **Release Date**: 2026-11-10
