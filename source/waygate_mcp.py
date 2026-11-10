@@ -24,6 +24,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -37,6 +38,7 @@ from .mcp_integration import (
     mcp_integration_manager,
 )
 from .mcp_tools import execute_tool, get_available_tools
+from .metrics import HTTPMetrics, MetricsMiddleware
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
@@ -188,6 +190,7 @@ class WaygateServer:
 
     def __init__(self, settings: WaygateSettings) -> None:
         self.settings = settings
+        self.metrics = HTTPMetrics()
         self.app = self._create_app()
         self.logger = logger.bind(component="server")
         self.start_time = datetime.utcnow()
@@ -212,6 +215,8 @@ class WaygateServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        app.add_middleware(MetricsMiddleware, metrics=self.metrics)
 
         # Add exception handlers
         app.add_exception_handler(HTTPException, self._http_exception_handler)
@@ -293,28 +298,12 @@ class WaygateServer:
             return {"ready": ready, "checks": checks}
 
         @app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
-        async def metrics() -> str:
-            """Prometheus metrics endpoint"""
-            # This would integrate with prometheus_client
-            metrics_data = [
-                "# HELP waygate_requests_total Total number of requests",
-                "# TYPE waygate_requests_total counter",
-                "waygate_requests_total 0",
-                "",
-                "# HELP waygate_errors_total Total number of errors",
-                "# TYPE waygate_errors_total counter",
-                "waygate_errors_total 0",
-                "",
-                "# HELP waygate_response_time_seconds Response time in seconds",
-                "# TYPE waygate_response_time_seconds histogram",
-                'waygate_response_time_seconds_bucket{le="0.1"} 0',
-                'waygate_response_time_seconds_bucket{le="0.5"} 0',
-                'waygate_response_time_seconds_bucket{le="1.0"} 0',
-                'waygate_response_time_seconds_bucket{le="+Inf"} 0',
-                "waygate_response_time_seconds_count 0",
-                "waygate_response_time_seconds_sum 0",
-            ]
-            return "\n".join(metrics_data)
+        async def metrics() -> Response:
+            """Expose measured per-process HTTP traffic, excluding scrapes."""
+            return Response(
+                generate_latest(self.metrics.registry),
+                headers={"Content-Type": CONTENT_TYPE_LATEST},
+            )
 
         @app.post("/mcp/execute", response_model=MCPResponse, tags=["MCP"])
         async def execute_mcp(command: MCPCommand) -> MCPResponse:
@@ -360,26 +349,47 @@ class WaygateServer:
 
         @app.get("/mcp/status", tags=["MCP"])
         async def mcp_status() -> Dict[str, Any]:
-            """Get MCP engine status"""
+            """Report the live registry and current integration state."""
+            manager = await get_mcp_manager()
+            status = await manager.get_mcp_status()
+            loader = manager.plugin_loader
             return {
-                "engine": "operational",
-                "plugins_loaded": 0,
-                "commands_available": ["test", "echo", "status"],
+                "engine": (
+                    "degraded"
+                    if status["integration_status"] in {"inactive", "degraded"}
+                    else "operational"
+                ),
+                "plugins_loaded": len(loader.loaded_plugins) if loader else 0,
+                "commands_available": sorted(
+                    tool["name"] for tool in get_available_tools()
+                ),
                 "protocol_version": "1.0",
+                "integration": status,
             }
 
         @app.get("/plugins", tags=["Plugins"])
         async def list_plugins() -> Dict[str, Any]:
-            """List loaded plugins"""
-            # TODO: Implement plugin registry
-            return {"plugins": [], "total": 0}
+            """List actual registered plugins, preserving failed catalog visibility."""
+            manager = await get_mcp_manager()
+            if manager.plugin_loader is None:
+                raise HTTPException(503, "Plugin registry is unavailable")
+            status = await manager.plugin_loader.get_plugin_status()
+            return {**status, "total": status["plugins_loaded"]}
 
         @app.post("/plugins/reload", tags=["Plugins"])
-        async def reload_plugins() -> Dict[str, Any]:
-            """Reload all plugins"""
-            self.logger.info("reloading_plugins")
-            # TODO: Implement plugin reloading
-            return {"status": "plugins_reloaded", "count": 0}
+        async def reload_plugins(response: Response) -> Dict[str, Any]:
+            """Reload registered plugins and report partial failures explicitly."""
+            manager = await get_mcp_manager()
+            try:
+                result = await manager.reload_plugins()
+            except Exception:
+                raise HTTPException(503, "Plugin reload failed") from None
+            if result["failed"]:
+                response.status_code = 503
+            return {
+                "status": "reload_failed" if result["failed"] else "plugins_reloaded",
+                **result,
+            }
 
         # MCP Integration Endpoints
         @app.get("/mcp/servers", tags=["MCP"])

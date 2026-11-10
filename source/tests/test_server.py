@@ -29,7 +29,16 @@ def server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     )
     manager = SimpleNamespace(
         mcp_servers={},
-        get_mcp_status=AsyncMock(return_value={"status": "ready"}),
+        get_mcp_status=AsyncMock(return_value={"integration_status": "disabled"}),
+        plugin_loader=SimpleNamespace(
+            loaded_plugins={},
+            get_plugin_status=AsyncMock(
+                return_value={"plugins_loaded": 0, "plugins": []}
+            ),
+        ),
+        reload_plugins=AsyncMock(
+            return_value={"count": 0, "failed": [], "reloaded": [], "disabled": []}
+        ),
         get_all_mcp_tools=AsyncMock(return_value={}),
         execute_mcp_tool=AsyncMock(return_value={"success": True}),
         reload_mcp_server=AsyncMock(return_value=False),

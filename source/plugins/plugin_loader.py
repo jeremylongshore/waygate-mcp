@@ -397,9 +397,17 @@ class PluginLoader:
         plugin_list = []
 
         for plugin_name, plugin in self.loaded_plugins.items():
-            plugin_info = plugin.get_info()
-            plugin_info["status"] = "active"
-            plugin_info["tools_count"] = len(await plugin.get_tools())
+            try:
+                plugin_info = plugin.get_info()
+                plugin_info["status"] = "active"
+                plugin_info["tools_count"] = len(await plugin.get_tools())
+            except Exception:
+                plugin_info = {
+                    "name": plugin.name,
+                    "status": "error",
+                    "tools_count": None,
+                }
+            plugin_info["module"] = plugin_name
             plugin_list.append(plugin_info)
 
         mcp_server_list = []
@@ -415,7 +423,9 @@ class PluginLoader:
         return {
             "plugins_loaded": len(self.loaded_plugins),
             "plugins_failed": self.plugin_stats["total_failed"],
-            "mcp_servers_active": self.plugin_stats["mcp_servers_active"],
+            "mcp_servers_active": sum(
+                server["status"] == "active" for server in self.mcp_servers.values()
+            ),
             "last_load_time": self.plugin_stats["last_load_time"],
             "plugins": plugin_list,
             "mcp_servers": mcp_server_list,

@@ -4,6 +4,7 @@ MCP Integration Module for Waygate MCP
 Handles initialization and management of integrated MCP servers
 """
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict, List, TypedDict
@@ -41,6 +42,7 @@ class MCPIntegrationManager:
         self.plugin_loader: PluginLoader | None = None
         self.mcp_servers: Dict[str, ServerInfo] = {}
         self.is_initialized = False
+        self.reload_lock = asyncio.Lock()
 
     async def initialize(self) -> None:
         """Initialize the MCP integration system"""
@@ -298,6 +300,62 @@ class MCPIntegrationManager:
                 "error": error_msg,
                 "mcp_server": server_name,
                 "tool": tool_name,
+            }
+
+    async def reload_plugins(self) -> Dict[str, Any]:
+        """Reload registered plugins and reconnect MCP entries to new instances."""
+        async with self.reload_lock:
+            if self.plugin_loader is None:
+                raise RuntimeError("Plugin registry is unavailable")
+            loader = self.plugin_loader
+            reloaded, failed, disabled = [], [], []
+            enabled = {
+                name.strip()
+                for name in os.getenv("MCP_SERVERS_ENABLED", "").split(",")
+                if name.strip()
+            }
+            for name in list(loader.loaded_plugins):
+                provider = name.removesuffix("_mcp_plugin")
+                is_provider = name.endswith("_mcp_plugin")
+                if is_provider:
+                    # Remove stale references before cleanup or replacement can fail.
+                    self.mcp_servers = {
+                        key: value
+                        for key, value in self.mcp_servers.items()
+                        if value["config"]["server_type"] != provider
+                    }
+                    loader.mcp_servers = {
+                        key: value
+                        for key, value in loader.mcp_servers.items()
+                        if value["plugin"] is not loader.loaded_plugins[name]
+                    }
+                    if provider not in enabled:
+                        if await loader.unload_plugin(name):
+                            disabled.append(name)
+                        else:
+                            failed.append(name)
+                        continue
+                if not await loader.reload_plugin(name):
+                    failed.append(name)
+                    continue
+                if is_provider:
+                    await self._load_mcp_server(provider)
+                    if self.provider_readiness().get(provider) != "ok":
+                        failed.append(name)
+                        continue
+                    loader.mcp_servers.update(
+                        {
+                            key: value
+                            for key, value in self.mcp_servers.items()
+                            if value["config"]["server_type"] == provider
+                        }
+                    )
+                reloaded.append(name)
+            return {
+                "count": len(reloaded),
+                "reloaded": reloaded,
+                "failed": failed,
+                "disabled": disabled,
             }
 
     def provider_readiness(self) -> Dict[str, str]:

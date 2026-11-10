@@ -306,3 +306,20 @@ required check fails; disabled providers are explicitly reported as `disabled`.
 Readiness does not start clients or reconnect them. Provider state reflects the
 last observed connection and process status, not an active upstream availability
 probe. The endpoints do not claim cache or filesystem checks they have not run.
+
+### Runtime status, plugin administration and metrics
+
+`/mcp/status` reports the loaded registry count, the actual local tool catalog and
+MCP integration state. `/plugins` lists registered plugins and identifies catalog
+failures without returning exception details. `POST /plugins/reload` reloads the
+registered modules and refreshes MCP routing references after configuration.
+Disabled providers are unloaded. Partial failures return HTTP 503 with separate
+`reloaded`, `failed` and `disabled` lists; `count` includes successful reloads only.
+Reload requests are serialized, but a reload is not an atomic rollback transaction
+and can interrupt requests already using a plugin.
+
+`/metrics` exposes measured HTTP request counts, HTTP error counts (status 400 and
+above), and request-duration histograms. Scrapes do not count themselves. Each
+server process owns its registry; values reset on restart and are not aggregated
+across workers. These HTTP metrics do not count tool-level errors returned inside
+an HTTP 200 response as HTTP failures.
