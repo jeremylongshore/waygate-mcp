@@ -1,6 +1,9 @@
 # Runtime readiness verification — 2026-11-10
 
-Tracked by bd_000-projects-u8kx.49, stacked on dependency/security PR8.
+Tracked by bd_000-projects-u8kx.49 in draft PR17, based on dependency/security
+PR8. PR17 targets main to exercise the configured PR workflow; PR8 remains a
+prerequisite. Legacy placeholder status, plugin administration and metrics
+endpoints are tracked separately by bd_000-projects-u8kx.53.
 
 Three regression-first checks failed before the repair: disabled providers were
 attempted, the abstract bridge was discovered, and an enabled missing provider
