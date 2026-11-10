@@ -261,25 +261,20 @@ jobs:
   release:
     name: 📦 Release Management
     runs-on: ubuntu-latest
-    needs: [security, test, docker, deploy-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    needs: [security, test, docker, deploy-test, benchmark]
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🏷️ Semantic Release
-        uses: cycjimmy/semantic-release-action@v5
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
         with:
-          semantic_version: 19
-          extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/git
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.12'
+      - name: Validate release contracts
+        run: python -m unittest discover -s ci/release -p 'test_*.py' -v
+      - name: Validate reviewed version metadata
+        run: python -c 'from pathlib import Path; from ci.release.publish import read_version; print(read_version(Path.cwd()))'
 
   # ========================================
   # NOTIFICATIONS
