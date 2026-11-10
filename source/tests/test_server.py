@@ -49,6 +49,14 @@ def test_settings_generate_secret_and_create_only_configured_directories(
     assert server.settings.host == "127.0.0.1"
 
 
+def test_runtime_reports_reviewed_release_version(server: SimpleNamespace) -> None:
+    from source.version import VERSION
+
+    assert server.client.get("/health").json()["version"] == VERSION
+    assert server.client.get("/").json()["version"] == VERSION
+    assert server.client.get("/openapi.json").json()["info"]["version"] == VERSION
+
+
 @pytest.mark.parametrize(
     "path",
     [

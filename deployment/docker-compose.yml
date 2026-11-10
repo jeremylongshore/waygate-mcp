@@ -59,7 +59,8 @@ services:
 
       # MCP Server Integration Environment Variables
       # Firebase MCP Server
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-diagnostic-pro-start-up}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_STAGING_PROJECT_ID=${FIREBASE_STAGING_PROJECT_ID:-}
       - FIREBASE_REGION=${FIREBASE_REGION:-us-central1}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
 

@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "waygate-mcp"
-version = "2.1.0"
+version = "2.2.2"
 description = "Enterprise-grade MCP server with comprehensive security hardening"
 authors = [{name = "Jeremy Longshore", email = "jeremy@waygate.dev"}]
 readme = "README.md"

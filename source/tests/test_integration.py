@@ -153,6 +153,7 @@ async def test_default_seed_only_when_empty_and_auto_enabled(
             "firebase",
             [
                 "FIREBASE_PROJECT_ID",
+                "FIREBASE_STAGING_PROJECT_ID",
                 "FIREBASE_REGION",
                 "GOOGLE_APPLICATION_CREDENTIALS",
             ],

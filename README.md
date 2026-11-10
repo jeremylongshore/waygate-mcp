@@ -1,6 +1,6 @@
 # Waygate MCP - Complete Enterprise MCP Server Framework
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/waygateai/waygate-mcp/releases/tag/v2.2.1)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/waygateai/waygate-mcp/releases/tag/v2.2.2)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.com)
 [![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-Ready-purple.svg)](https://claude.ai/desktop)
 [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](#security-features)
@@ -9,13 +9,13 @@
 
 🚀 **Production-Ready MCP Server**: Complete tool suite with enterprise security, TaskWarrior integration, and seamless Claude Desktop compatibility
 
-## v2.2.1 "Complete Arsenal" Release (September 2025)
+## v2.2.2 "Complete Arsenal" Release (September 2025)
 
 **🎉 MAJOR UPDATE**: Complete MCP tools implementation with zero-configuration security, automatic secret generation, and comprehensive Claude Desktop integration. **100% backward compatible** with enhanced reliability and production readiness.
 
 ## ✨ Complete Features
 
-### 🛠️ MCP Tools Suite (NEW in v2.2.1)
+### 🛠️ MCP Tools Suite (NEW in v2.2.2)
 ✅ **execute_command**: Safe system command execution with timeout protection
 ✅ **read_file**: Secure file reading with path validation and size limits
 ✅ **write_file**: Protected file writing with content validation
@@ -54,7 +54,7 @@ That's it! Waygate MCP is running with all security features enabled.
 
 ## 🚀 Detailed Setup
 
-### 1. Complete MCP Server (Recommended - v2.2.1)
+### 1. Complete MCP Server (Recommended - v2.2.2)
 ```bash
 git clone https://github.com/waygateai/waygate-mcp.git
 cd waygate-mcp
@@ -102,7 +102,22 @@ cp claude_desktop_config.json ~/.config/Claude/claude_desktop_config.json
 python3 simple_server.py
 ```
 
-## 🛠️ MCP Tools Reference (v2.2.1)
+## Firebase deployment targets
+
+The `diagnosticpro_deploy_functions` tool requires an explicit project for its
+selected environment. Configure `FIREBASE_PROJECT_ID` for production and
+`FIREBASE_STAGING_PROJECT_ID` for staging. Leave unconfigured targets empty;
+requests for them are refused before the Firebase bridge is called.
+
+The tool defaults to `staging` when `environment` is omitted. Only `staging` and
+`production` are accepted, and both targets must differ when both are configured.
+Every accepted deployment passes its selected project explicitly to the bridge;
+it does not inherit a Firebase CLI default project. The former hardcoded project
+fallback has been removed. Successful responses include the selected `project_id`.
+These settings select a target; they do not grant Firebase permissions or verify
+that a project belongs to the intended environment.
+
+## 🛠️ MCP Tools Reference (v2.2.2)
 
 ### **execute_command** - Safe System Commands
 ```python

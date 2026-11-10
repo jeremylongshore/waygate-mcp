@@ -27,6 +27,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from source.version import VERSION as WAYGATE_VERSION
+
 # Waygate MCP modules
 from .database import init_database
 from .mcp_integration import get_mcp_manager, initialize_mcp_integration
@@ -43,7 +45,6 @@ logging.basicConfig(
 # Environment configuration
 WAYGATE_MODE = os.getenv("WAYGATE_MODE", "development")
 WAYGATE_PROJECTS_DIR = os.getenv("WAYGATE_PROJECTS_DIR", "/home/jeremy/projects")
-WAYGATE_VERSION = "2.0.0"
 
 # Configure structured logging
 structlog.configure(
@@ -173,7 +174,7 @@ class HealthCheck(BaseModel):
 
     status: str
     checks: Dict[str, str]
-    version: str = "2.0.0"
+    version: str = WAYGATE_VERSION
     uptime_seconds: Optional[int] = None
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
@@ -194,7 +195,7 @@ class WaygateServer:
             description=(
                 "Enterprise-grade MCP Server Framework - Successor to NEXUS MCP"
             ),
-            version="2.0.0",
+            version=WAYGATE_VERSION,
             docs_url="/docs" if self.settings.env == "development" else None,
             redoc_url="/redoc" if self.settings.env == "development" else None,
         )
@@ -257,7 +258,7 @@ class WaygateServer:
             """Root endpoint - service information"""
             return {
                 "service": "Waygate MCP",
-                "version": "2.0.0",
+                "version": WAYGATE_VERSION,
                 "status": "operational",
                 "mode": self.settings.mode,
                 "description": "Enterprise-grade MCP Server Framework",
@@ -616,7 +617,7 @@ def main(host: str, port: int, reload: bool, workers: int, env: str) -> None:
         print(f"""
 ╔══════════════════════════════════════════════════════════╗
 ║                    Waygate MCP Server                     ║
-║                        v2.0.0                             ║
+║                        v{WAYGATE_VERSION}                             ║
 ║                                                           ║
 ║  Successor to NEXUS MCP with Enhanced Diagnostics        ║
 ║                                                           ║

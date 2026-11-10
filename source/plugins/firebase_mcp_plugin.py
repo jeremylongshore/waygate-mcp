@@ -64,7 +64,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             Firebase-specific configuration
         """
         return {
-            "project_id": os.getenv("FIREBASE_PROJECT_ID", "diagnostic-pro-start-up"),
+            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
             "service_account_path": os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
             "region": os.getenv("FIREBASE_REGION", "us-central1"),
             "features": [
@@ -98,15 +98,9 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             project_id = os.getenv("FIREBASE_PROJECT_ID")
             service_account = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-            if not project_id:
-                logger.warning(
-                    "⚠️ FIREBASE_PROJECT_ID not set, using default:"
-                    " diagnostic-pro-start-up"
-                )
-                project_id = "diagnostic-pro-start-up"
-
             self.credentials = {
                 "FIREBASE_PROJECT_ID": project_id,
+                "FIREBASE_STAGING_PROJECT_ID": os.getenv("FIREBASE_STAGING_PROJECT_ID"),
                 "GOOGLE_APPLICATION_CREDENTIALS": service_account,
                 "FIREBASE_REGION": os.getenv("FIREBASE_REGION", "us-central1"),
             }
@@ -276,6 +270,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                         "environment": {
                             "type": "string",
                             "description": "Target environment (staging, production)",
+                            "enum": ["staging", "production"],
                             "default": "staging",
                         },
                     },
@@ -460,6 +455,28 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         """Deploy DiagnosticPro Cloud Functions"""
         function_name = params["function_name"]
         environment = params.get("environment", "staging")
+        if environment not in ("staging", "production"):
+            return {"success": False, "error": "Unsupported deployment environment"}
+
+        project_keys = {
+            "staging": "FIREBASE_STAGING_PROJECT_ID",
+            "production": "FIREBASE_PROJECT_ID",
+        }
+        projects: Dict[str, str] = {}
+        for name, key in project_keys.items():
+            value = self.credentials.get(key)
+            projects[name] = value.strip() if isinstance(value, str) else ""
+        project_id = projects[environment]
+        if not project_id:
+            return {
+                "success": False,
+                "error": f"Explicit {project_keys[environment]} is required",
+            }
+        if projects["staging"] and projects["staging"] == projects["production"]:
+            return {
+                "success": False,
+                "error": "Staging and production projects must be different",
+            }
 
         # Map function names to actual function files
         function_mapping = {
@@ -479,13 +496,11 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
 
         # Use Firebase MCP to deploy functions
         deploy_params: Dict[str, Any] = {
+            "project": project_id,
             "only": (
                 f"functions:{function_name}" if function_name != "all" else "functions"
-            )
+            ),
         }
-
-        if environment == "production":
-            deploy_params["project"] = self.credentials.get("FIREBASE_PROJECT_ID")
 
         result = await super().execute("firebase_functions_deploy", deploy_params)
 
@@ -494,6 +509,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                 "success": True,
                 "deployed_function": function_name,
                 "environment": environment,
+                "project_id": project_id,
                 "deployment_result": result["result"],
                 "context": "diagnosticpro_deployment",
             }
@@ -510,9 +526,8 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         base_info = super().get_info()
         base_info.update(
             {
-                "firebase_project": self.credentials.get(
-                    "FIREBASE_PROJECT_ID", "not_configured"
-                ),
+                "firebase_project": self.credentials.get("FIREBASE_PROJECT_ID")
+                or "not_configured",
                 "firebase_region": self.credentials.get(
                     "FIREBASE_REGION", "us-central1"
                 ),
