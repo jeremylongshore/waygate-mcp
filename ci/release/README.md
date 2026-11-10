@@ -46,5 +46,13 @@ The publisher saves a JSON receipt with the candidate SHA, CI run ID, version,
 decision and publication status. API and CLI errors propagate; no success
 receipt is emitted for a failed operation.
 
+The main CI benchmark job runs two local microbenchmarks: tool catalog creation
+and validation of an allowed path. Both assert the functional result. A report
+validator requires both measurements and finite, positive, consistent statistics;
+empty selections and command failures fail the job. These measurements establish
+execution evidence, not a production latency SLO. The full source test matrix
+continues to enforce its existing coverage floor separately. PR release-contract
+validation does not depend on this main-only job, so it runs before merge too.
+
 GitHub documents the [workflow_run trust boundary](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)
 and [explicit release target behavior](https://cli.github.com/manual/gh_release_create).
