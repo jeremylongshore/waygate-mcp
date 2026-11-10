@@ -122,6 +122,7 @@ class MCPToolsHandler:
                 )
             except asyncio.TimeoutError:
                 process.kill()
+                await process.wait()
                 raise MCPToolError(f"Command timed out after {timeout} seconds")
 
             return {
@@ -292,6 +293,10 @@ class MCPToolsHandler:
             results = []
 
             for file_path in base_path.rglob("*"):
+                try:
+                    self._validate_path(str(file_path))
+                except MCPToolError:
+                    continue
                 if file_path.is_file():
                     match_found = False
                     match_type = []
