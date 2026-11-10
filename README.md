@@ -102,6 +102,21 @@ cp claude_desktop_config.json ~/.config/Claude/claude_desktop_config.json
 python3 simple_server.py
 ```
 
+## Firebase deployment targets
+
+The `diagnosticpro_deploy_functions` tool requires an explicit project for its
+selected environment. Configure `FIREBASE_PROJECT_ID` for production and
+`FIREBASE_STAGING_PROJECT_ID` for staging. Leave unconfigured targets empty;
+requests for them are refused before the Firebase bridge is called.
+
+The tool defaults to `staging` when `environment` is omitted. Only `staging` and
+`production` are accepted, and both targets must differ when both are configured.
+Every accepted deployment passes its selected project explicitly to the bridge;
+it does not inherit a Firebase CLI default project. The former hardcoded project
+fallback has been removed. Successful responses include the selected `project_id`.
+These settings select a target; they do not grant Firebase permissions or verify
+that a project belongs to the intended environment.
+
 ## 🛠️ MCP Tools Reference (v2.2.0)
 
 ### **execute_command** - Safe System Commands

@@ -175,6 +175,9 @@ class MCPIntegrationManager:
             if server_type == "firebase":
                 credentials = {
                     "FIREBASE_PROJECT_ID": os.getenv("FIREBASE_PROJECT_ID"),
+                    "FIREBASE_STAGING_PROJECT_ID": os.getenv(
+                        "FIREBASE_STAGING_PROJECT_ID"
+                    ),
                     "FIREBASE_REGION": os.getenv("FIREBASE_REGION"),
                     "GOOGLE_APPLICATION_CREDENTIALS": os.getenv(
                         "GOOGLE_APPLICATION_CREDENTIALS"

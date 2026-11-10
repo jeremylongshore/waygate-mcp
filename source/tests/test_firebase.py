@@ -15,6 +15,7 @@ from source.plugins.mcp_bridge_plugin import MCPBridgePlugin
 def firebase(monkeypatch: pytest.MonkeyPatch) -> tuple[FirebaseMCPPlugin, AsyncMock]:
     for name in [
         "FIREBASE_PROJECT_ID",
+        "FIREBASE_STAGING_PROJECT_ID",
         "FIREBASE_REGION",
         "GOOGLE_APPLICATION_CREDENTIALS",
     ]:
