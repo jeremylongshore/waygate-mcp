@@ -80,7 +80,7 @@ aiofiles==23.2.1
 aiolimiter==1.1.0
 
 # Testing and development (proxy-specific)
-pytest==7.4.3
+pytest==9.2.0
 pytest-asyncio==0.21.1
 pytest-httpx==0.26.0
 pytest-mock==3.12.0
