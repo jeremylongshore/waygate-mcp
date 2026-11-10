@@ -217,8 +217,11 @@ rules:
           logging.info(f"Password: {$PASSWORD}")
       - pattern: |
           print(f"API Key: {$API_KEY}")
-      - pattern: |
-          logger.debug(...$TOKEN...)
+      - patterns:
+          - pattern: logger.debug(..., $TOKEN, ...)
+          - metavariable-regex:
+              metavariable: $TOKEN
+              regex: (?i).*(token|secret|password|api_key).*
     message: "Sensitive data in logs. Sanitize before logging."
     languages: [python]
     severity: ERROR

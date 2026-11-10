@@ -1,0 +1,8 @@
+{
+  "name": "waygate-security-tools",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "@intentsolutions/audit-harness": "2.0.0"
+  }
+}

@@ -36,65 +36,35 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: 📦 Install security tools
+      - name: Setup Node for the released audit harness
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ci/security/package-lock.json
+
+      - name: Install pinned security tools
         run: |
-          pip install 'bandit[toml]==1.9.4' 'safety==3.8.1' 'semgrep==1.178.0' 'pip-audit==2.10.1' 'detect-secrets==1.5.0' 'cyclonedx-bom==7.4.0' 'pip-licenses==5.5.5'
+          npm ci --ignore-scripts --prefix ci/security
+          pip install 'bandit[toml]==1.9.4' 'semgrep==1.178.0'
+          bash ci/security/install-tools.sh "$RUNNER_TEMP/security-bin"
+          echo "$RUNNER_TEMP/security-bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/ci/security/node_modules/.bin" >> "$GITHUB_PATH"
 
-      - name: 🔍 Run comprehensive security scan
-        run: |
-          # Create audit reports directory
-          mkdir -p audit-reports
+      - name: Verify security failure contracts
+        run: python -m unittest discover -s ci -p 'test_security*.py' -v
 
-          # Run Bandit with enhanced configuration
-          bandit -r 02-src,source -f json -o audit-reports/bandit-report.json --severity-level medium --confidence-level medium || true
-          bandit -r 02-src,source -f txt -o audit-reports/bandit-report.txt --severity-level medium --confidence-level medium || true
-          bandit -r 02-src,source -f sarif -o audit-reports/bandit-report.sarif --severity-level medium --confidence-level medium || true
+      - name: Run fail-closed security measurements
+        run: python ci/security_scan.py --output "$RUNNER_TEMP/waygate-security-reports"
 
-      - name: 🛡️ Run Safety vulnerability scan
-        run: |
-          # Run Safety with policy file
-          safety check --json --output audit-reports/safety-report.json --policy-file .safety-policy.json || true
-          safety check --output audit-reports/safety-report.txt --policy-file .safety-policy.json || true
-
-      - name: 🔐 Run pip-audit package scan
-        run: |
-          pip-audit --format=json --output=audit-reports/pip-audit.json --require requirements.txt || true
-          pip-audit --format=cyclonedx-json --output=audit-reports/pip-audit-sbom.json --require requirements.txt || true
-
-      - name: 🕵️ Run Semgrep static analysis
-        run: |
-          # Run Semgrep with custom rules
-          semgrep --config=.semgrep.yml --json --output=audit-reports/semgrep-report.json 02-src source || true
-          semgrep --config=.semgrep.yml --sarif --output=audit-reports/semgrep-report.sarif 02-src source || true
-
-      - name: 🔐 Run secret detection
-        run: |
-          # Run detect-secrets
-          detect-secrets scan --all-files --force-use-all-plugins --baseline audit-reports/secrets-baseline.json || true
-
-      - name: 📋 Generate SBOM and license report
-        run: |
-          # Generate Software Bill of Materials
-          cyclonedx-py -o audit-reports/sbom.json --format json requirements.txt || true
-
-          # Generate license report
-          pip-licenses --format=json --output-file=audit-reports/licenses.json --with-urls --with-description || true
-
-      - name: 📊 Upload comprehensive security reports
+      - name: Retain security evidence on success or failure
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: security-reports-${{ github.run_number }}
-          path: |
-            audit-reports/
+          path: ${{ runner.temp }}/waygate-security-reports/
+          if-no-files-found: error
           retention-days: 90
-
-      - name: 📈 Upload SARIF results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: audit-reports/
-          category: waygate-security-scan
 
   # ========================================
   # CODE QUALITY & TESTING
