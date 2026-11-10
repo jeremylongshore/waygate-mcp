@@ -51,7 +51,14 @@ the release/security/benchmark contracts, scan each generated profile, and
 rebuild/smoke-test the container when its graph changes. Keep the existing
 coverage, mutation and scanner policies intact.
 
-Proxy and retained historical manifests are separate unresolved profiles.
-They remain visible to the repository-wide scan. Clean results for these four
+The standard, development and container manifests in `source-backup-092925/`
+and `04-assets/configs/development/` mirror the corresponding maintained source
+profiles. Regeneration refreshes all six copies. These retained source/configuration
+paths remain visible to the repository-wide scan. Updating their dependencies does
+not certify every retained server entrypoint or restore historical deployment claims.
+The removed legacy python-jose dependency has no imports in either retained source
+tree; the maintained profiles already omit it.
+
+Proxy manifests remain separate unresolved profiles and remain scanned. Clean results for these four
 profiles do not establish a clean repository, credential history or proxy
 deployment. The proxy implementation gap is tracked by `u8kx.52`.

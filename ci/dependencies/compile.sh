@@ -18,3 +18,11 @@ uv pip compile "${common[@]}" source/requirements.in -o source/requirements.txt
 uv pip compile "${common[@]}" -c source/requirements.txt source/requirements-docker.in -o source/requirements-docker.txt
 uv pip compile "${common[@]}" -c source/requirements.txt source/requirements.in source/requirements-dev.in -o source/requirements-dev.txt
 uv pip compile "${common[@]}" -c source/requirements.txt requirements.in -o requirements.txt
+
+# Retained deployment/configuration copies use the same maintained profiles.
+# Keep their paths visible to security scanning; do not maintain divergent pins.
+for directory in source-backup-092925 04-assets/configs/development; do
+  for profile in requirements.txt requirements-dev.txt requirements-docker.txt; do
+    cp -- "source/$profile" "$directory/$profile"
+  done
+done

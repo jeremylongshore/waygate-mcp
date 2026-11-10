@@ -1,0 +1,8 @@
+{
+  "source-backup-092925/requirements.txt": "d9358f22a228e4b34706aec8ad7d11243233c63bb2a7b731e0ead7658ced9945",
+  "source-backup-092925/requirements-dev.txt": "989d57b68e1ff551b730b2a15252eec898d549adab3d862d953db3780e362faf",
+  "source-backup-092925/requirements-docker.txt": "2b14405c22fd29f534ac68cd2276b3528e3a72da587ebc5014f4965523087938",
+  "04-assets/configs/development/requirements.txt": "d9358f22a228e4b34706aec8ad7d11243233c63bb2a7b731e0ead7658ced9945",
+  "04-assets/configs/development/requirements-dev.txt": "989d57b68e1ff551b730b2a15252eec898d549adab3d862d953db3780e362faf",
+  "04-assets/configs/development/requirements-docker.txt": "2b14405c22fd29f534ac68cd2276b3528e3a72da587ebc5014f4965523087938"
+}
