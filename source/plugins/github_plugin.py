@@ -3,10 +3,10 @@ GitHub Integration Plugin for Waygate MCP
 Easy GitHub operations without technical knowledge
 """
 
-from .base_plugin import BasePlugin
-from typing import Dict, Any, List
 import os
-import json
+from typing import Any, Dict, List
+
+from .base_plugin import BasePlugin
 
 
 class GitHubPlugin(BasePlugin):
@@ -99,7 +99,7 @@ class GitHubPlugin(BasePlugin):
                 "created_at": "2024-01-15T12:00:00Z",
             },
             "instructions": [
-                f"1. Go to https://github.com/new",
+                "1. Go to https://github.com/new",
                 f"2. Enter repository name: {repo_name}",
                 f"3. Add description: {description}",
                 f"4. Set visibility: {'Private' if private else 'Public'}",
@@ -129,13 +129,15 @@ class GitHubPlugin(BasePlugin):
                 "labels": [],
                 "assignees": [],
             },
-            "markdown": f"""## {title}
+            "markdown": (
+                f"""## {title}
 
 {body}
 
 ---
 *Created with Waygate MCP*
-""",
+"""
+            ),
         }
 
         return {
@@ -171,6 +173,7 @@ class GitHubPlugin(BasePlugin):
         installation = params.get("installation", "npm install")
         author = params.get("author", "Your Name")
 
+        github_handle = author.lower().replace(" ", "")
         readme_content = f"""# {project_name}
 
 {description}
@@ -209,13 +212,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE) file for details.
 
 ## 👤 Author
 
 **{author}**
 
-- GitHub: [@{author.lower().replace(' ', '')}](https://github.com/{author.lower().replace(' ', '')})
+- GitHub: [@{github_handle}](https://github.com/{github_handle})
 
 ## 🌟 Show your support
 
@@ -223,7 +227,8 @@ Give a ⭐️ if this project helped you!
 
 ---
 
-*This README was generated with ❤️ by [Waygate MCP](https://github.com/yourusername/waygate-mcp)*
+*This README was generated with ❤️ by
+[Waygate MCP](https://github.com/yourusername/waygate-mcp)*
 """
 
         # Save to file

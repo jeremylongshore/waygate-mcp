@@ -4,16 +4,19 @@ Waygate MCP Server - Foundational MCP implementation
 Successor to NEXUS MCP with stdio-based communication
 """
 
-import os
-import sys
-import json
 import asyncio
 import logging
-import signal
+import os
 import secrets
-from typing import Dict, Any, List, Optional
+import signal
+import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import click
+import structlog
+import uvicorn
 
 # FastAPI and related imports
 from fastapi import FastAPI, HTTPException
@@ -21,14 +24,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
-import uvicorn
-import click
-import structlog
 
 # Waygate MCP modules
-from .database import init_database, db_manager
-from .mcp_integration import initialize_mcp_integration, get_mcp_manager
-from .mcp_tools import execute_tool, get_available_tools, MCPToolError
+from .database import init_database
+from .mcp_integration import get_mcp_manager, initialize_mcp_integration
+from .mcp_tools import execute_tool, get_available_tools
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
@@ -187,7 +187,9 @@ class WaygateServer:
         """Create FastAPI application"""
         app = FastAPI(
             title="Waygate MCP",
-            description="Enterprise-grade MCP Server Framework - Successor to NEXUS MCP",
+            description=(
+                "Enterprise-grade MCP Server Framework - Successor to NEXUS MCP"
+            ),
             version="2.0.0",
             docs_url="/docs" if self.settings.env == "development" else None,
             redoc_url="/redoc" if self.settings.env == "development" else None,

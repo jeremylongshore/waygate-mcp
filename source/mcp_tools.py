@@ -4,21 +4,19 @@ MCP Tools Implementation for Waygate MCP Server
 Real tool handlers that replace placeholder responses
 """
 
-import os
-import json
 import asyncio
-import subprocess
 import logging
-import aiohttp
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
+import aiohttp
+
+from .exceptions import MCPToolError
 
 # Setup logger
 logger = logging.getLogger(__name__)
-
-# Import common exceptions
-from .exceptions import MCPToolError
 
 # Import X/Twitter integrations
 try:
@@ -287,7 +285,8 @@ class MCPToolsHandler:
                 raise MCPToolError(f"Search path does not exist: {base_path}")
 
             logger.info(
-                f"Searching files: query='{query}', path='{base_path}', type='{search_type}'"
+                f"Searching files: query='{query}', path='{base_path}',"
+                f" type='{search_type}'"
             )
 
             results = []
@@ -315,7 +314,7 @@ class MCPToolsHandler:
                             if query.lower() in content.lower():
                                 match_found = True
                                 match_type.append("content")
-                        except:
+                        except Exception:
                             pass  # Skip binary files or unreadable files
 
                     if match_found:
@@ -378,9 +377,7 @@ class MCPToolsHandler:
                         )
                         headers.update(oauth_headers)
                         auth_added = True
-                        logger.info(
-                            f"Added OAuth 1.0a authentication for X/Twitter API"
-                        )
+                        logger.info("Added OAuth 1.0a authentication for X/Twitter API")
                     except Exception as e:
                         logger.warning(f"OAuth 1.0a not available: {e}")
 
@@ -391,7 +388,8 @@ class MCPToolsHandler:
                         headers["Authorization"] = f"Bearer {oauth2_token}"
                         auth_added = True
                         logger.info(
-                            "Using OAuth 2.0 Bearer token for X/Twitter API (expires every 2 hours)"
+                            "Using OAuth 2.0 Bearer token for X/Twitter API (expires"
+                            " every 2 hours)"
                         )
                     else:
                         logger.warning("No X/Twitter authentication available")
@@ -433,7 +431,7 @@ class MCPToolsHandler:
                     # Try to parse as JSON, fallback to text
                     try:
                         response_data = await response.json() if response_text else None
-                    except:
+                    except Exception:
                         response_data = response_text
 
                     return {
@@ -588,7 +586,9 @@ def get_available_tools() -> List[Dict[str, Any]]:
         },
         {
             "name": "http_request",
-            "description": "Make HTTP requests for external API calls with OAuth 1.0a support",
+            "description": (
+                "Make HTTP requests for external API calls with OAuth 1.0a support"
+            ),
             "parameters": {
                 "method": {"type": "string", "default": "GET"},
                 "url": {"type": "string", "required": True},

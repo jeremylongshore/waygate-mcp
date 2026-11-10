@@ -3,7 +3,7 @@ Base Plugin Class - Inherit from this to create your own plugins
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 
 class BasePlugin(ABC):

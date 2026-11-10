@@ -4,24 +4,22 @@ Waygate MCP Server - Simplified version without complex dependencies
 Just basic FastAPI server with SQLite
 """
 
-import os
-import sys
-import json
-import asyncio
 import logging
-from typing import Dict, Any, Optional
+import sys
 from datetime import datetime
+from typing import Any, Dict
 
-# FastAPI imports
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
-import uvicorn
 import click
+import uvicorn
 
 # Simple database
 from database_simple import init_database, simple_db
+
+# FastAPI imports
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel, Field
 
 # Configure logging
 logging.basicConfig(

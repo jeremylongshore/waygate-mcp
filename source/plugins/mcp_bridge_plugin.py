@@ -4,13 +4,12 @@ MCP Bridge Plugin Base Class
 For integrating external MCP servers into Waygate MCP
 """
 
-import json
 import asyncio
+import json
 import logging
-import subprocess
 from abc import abstractmethod
-from typing import Dict, Any, List, Optional, Union
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from .base_plugin import BasePlugin
 
@@ -468,7 +467,7 @@ class MCPBridgePlugin(BasePlugin):
         """Load credentials from configuration"""
         credentials_config = self.mcp_config.get("credentials", {})
         self.credentials = credentials_config
-        logger.debug(f"🔑 Credentials loaded for MCP server")
+        logger.debug("🔑 Credentials loaded for MCP server")
 
     async def _get_mcp_env(self) -> Dict[str, str]:
         """Get environment variables for MCP server process"""

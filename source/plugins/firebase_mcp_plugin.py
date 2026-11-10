@@ -4,10 +4,9 @@ Firebase MCP Server Integration Plugin for Waygate MCP
 Integrates Google's official Firebase CLI MCP server
 """
 
-import os
-import json
 import logging
-from typing import Dict, Any, List
+import os
+from typing import Any, Dict, List
 
 from .mcp_bridge_plugin import MCPBridgePlugin
 
@@ -35,7 +34,10 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
         super().__init__()
         self.name = "Firebase MCP Integration"
         self.version = "1.0.0"
-        self.description = "Official Firebase CLI MCP server integration for DiagnosticPro platform management"
+        self.description = (
+            "Official Firebase CLI MCP server integration for DiagnosticPro platform"
+            " management"
+        )
 
         # Firebase MCP configuration
         self.mcp_config = {
@@ -98,7 +100,8 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
 
             if not project_id:
                 logger.warning(
-                    "⚠️ FIREBASE_PROJECT_ID not set, using default: diagnostic-pro-start-up"
+                    "⚠️ FIREBASE_PROJECT_ID not set, using default:"
+                    " diagnostic-pro-start-up"
                 )
                 project_id = "diagnostic-pro-start-up"
 
@@ -247,7 +250,9 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                         },
                         "metric": {
                             "type": "string",
-                            "description": "Metric to retrieve (orders, revenue, users)",
+                            "description": (
+                                "Metric to retrieve (orders, revenue, users)"
+                            ),
                             "default": "orders",
                         },
                     },
@@ -263,7 +268,10 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
                     "properties": {
                         "function_name": {
                             "type": "string",
-                            "description": "Name of function to deploy (or 'all' for all functions)",
+                            "description": (
+                                "Name of function to deploy (or 'all' for all"
+                                " functions)"
+                            ),
                         },
                         "environment": {
                             "type": "string",

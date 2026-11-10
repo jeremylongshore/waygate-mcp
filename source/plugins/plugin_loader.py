@@ -4,15 +4,14 @@ Plugin Loader for Waygate MCP
 Handles dynamic loading of plugins and MCP server integrations
 """
 
-import os
-import sys
-import json
 import asyncio
 import importlib
+import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Type
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from .base_plugin import BasePlugin
 
@@ -450,7 +449,9 @@ class PluginLoader:
                 (name, display_name, version, description, status, error_message,
                  last_loaded, load_count, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
-                        COALESCE((SELECT load_count FROM plugins WHERE name = ?), 0) + 1,
+                        COALESCE(
+                            (SELECT load_count FROM plugins WHERE name = ?), 0
+                        ) + 1,
                         CURRENT_TIMESTAMP)
             """,
                 [

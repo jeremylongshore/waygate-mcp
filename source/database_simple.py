@@ -4,14 +4,11 @@ Waygate MCP Database Layer - Simplified SQLite-only version
 No external dependencies, just pure SQLite
 """
 
+import logging
 import os
 import sqlite3
-import json
-import asyncio
-import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from contextlib import asynccontextmanager
+from typing import Any, Dict
 
 logger = logging.getLogger("waygate_mcp.database_simple")
 

@@ -2,10 +2,10 @@
 Example MCP Tools - Easy templates for non-technical users to copy and modify
 """
 
-from typing import Dict, Any, List
 import json
 import os
 from datetime import datetime
+from typing import Any, Dict, List
 
 
 class ExampleTools:
@@ -28,7 +28,9 @@ class ExampleTools:
         Save a note with optional tags.
 
         Example usage:
-            await save_note("Meeting Notes", "Discussed project timeline", ["work", "important"])
+            await save_note(
+                "Meeting Notes", "Discussed project timeline", ["work", "important"]
+            )
         """
         note = {
             "id": datetime.now().isoformat(),

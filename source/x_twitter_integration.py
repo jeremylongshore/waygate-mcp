@@ -4,13 +4,13 @@ X/Twitter API Integration for Waygate MCP Server
 Provides secure X/Twitter posting functionality with proper OAuth handling
 """
 
-import os
 import json
-import asyncio
 import logging
+import os
+from typing import Any, Dict, List, Optional
+
 import aiohttp
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+
 from .exceptions import MCPToolError
 
 logger = logging.getLogger("waygate_mcp.x_twitter")
@@ -47,14 +47,16 @@ class XTwitterAPI:
         oauth_token = os.getenv("X_OAUTH2_ACCESS_TOKEN")
         if oauth_token:
             logger.warning(
-                "Found OAuth 2.0 access token, but Bearer token is preferred for app-only auth"
+                "Found OAuth 2.0 access token, but Bearer token is preferred for"
+                " app-only auth"
             )
-            # For now, try to use it as-is (this might work if it's actually a Bearer token)
+            # Try it as-is: the value might actually be a Bearer token.
             return oauth_token
 
         logger.warning("No X/Twitter Bearer token found in environment variables")
         logger.info(
-            "💡 Consider using OAuth 1.0a for permanent authentication (see X_OAUTH1A_SETUP.md)"
+            "💡 Consider using OAuth 1.0a for permanent authentication (see"
+            " X_OAUTH1A_SETUP.md)"
         )
         return None
 
@@ -110,9 +112,15 @@ class XTwitterAPI:
                         }
                     else:
                         error_data = await response.text()
-                        message = f"Credential verification failed with status {response.status}"
+                        message = (
+                            "Credential verification failed with status"
+                            f" {response.status}"
+                        )
                         if self.oauth1a_available and response.status == 401:
-                            message += ". OAuth 1.0a available - consider using verify_x_oauth1a_credentials tool instead"
+                            message += (
+                                ". OAuth 1.0a available - consider using"
+                                " verify_x_oauth1a_credentials tool instead"
+                            )
 
                         return {
                             "success": False,
@@ -126,7 +134,10 @@ class XTwitterAPI:
             logger.error(f"Credential verification failed: {str(e)}")
             message = "Failed to verify X/Twitter credentials"
             if self.oauth1a_available and "Bearer token" in str(e):
-                message += ". OAuth 1.0a available - consider using verify_x_oauth1a_credentials tool instead"
+                message += (
+                    ". OAuth 1.0a available - consider using"
+                    " verify_x_oauth1a_credentials tool instead"
+                )
 
             return {
                 "success": False,
@@ -193,7 +204,7 @@ class XTwitterAPI:
                         # Error response
                         try:
                             error_data = json.loads(response_text)
-                        except:
+                        except Exception:
                             error_data = {"detail": response_text}
 
                         error_message = self._parse_error_message(
@@ -323,7 +334,10 @@ def get_x_twitter_tools() -> List[Dict[str, Any]]:
     tools = [
         {
             "name": "post_tweet",
-            "description": "Post a tweet to X/Twitter using OAuth 2.0 Bearer token (expires every 2 hours)",
+            "description": (
+                "Post a tweet to X/Twitter using OAuth 2.0 Bearer token (expires every"
+                " 2 hours)"
+            ),
             "parameters": {
                 "text": {
                     "type": "string",
@@ -350,13 +364,19 @@ def get_x_twitter_tools() -> List[Dict[str, Any]]:
         },
         {
             "name": "verify_x_credentials",
-            "description": "Verify X/Twitter OAuth 2.0 Bearer token credentials are working",
+            "description": (
+                "Verify X/Twitter OAuth 2.0 Bearer token credentials are working"
+            ),
             "parameters": {},
-            "notes": "For permanent authentication, use verify_x_oauth1a_credentials instead",
+            "notes": (
+                "For permanent authentication, use verify_x_oauth1a_credentials instead"
+            ),
         },
         {
             "name": "get_x_user_info",
-            "description": "Get X/Twitter user information using OAuth 2.0 Bearer token",
+            "description": (
+                "Get X/Twitter user information using OAuth 2.0 Bearer token"
+            ),
             "parameters": {
                 "username": {
                     "type": "string",
@@ -364,7 +384,9 @@ def get_x_twitter_tools() -> List[Dict[str, Any]]:
                     "description": "Username (omit for own info)",
                 }
             },
-            "notes": "For permanent authentication, use get_x_user_info_oauth1a instead",
+            "notes": (
+                "For permanent authentication, use get_x_user_info_oauth1a instead"
+            ),
         },
     ]
 
@@ -376,7 +398,7 @@ def get_x_twitter_tools() -> List[Dict[str, Any]]:
         if result["success"]:
             for tool in tools:
                 tool["oauth1a_alternative"] = f"{tool['name']}_oauth1a"
-    except:
+    except Exception:
         pass
 
     return tools

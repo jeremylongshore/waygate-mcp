@@ -4,32 +4,19 @@ Waygate MCP Database Layer
 Turso (SQLite in the cloud) implementation with comprehensive schema
 """
 
-import os
-import asyncio
+import json
 import logging
-from typing import Optional, Dict, Any, List
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from typing import Any, Dict, List, Optional
 
 import libsql_client
 from sqlalchemy import (
-    create_engine,
     text,
-    MetaData,
-    Table,
-    Column,
-    Integer,
-    String,
-    Text,
-    Boolean,
-    DateTime,
-    JSON,
-    Float,
 )
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.dialects.sqlite import insert
-from contextlib import asynccontextmanager
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 logger = logging.getLogger("waygate_mcp.database")
 
@@ -105,7 +92,8 @@ class DatabaseConfig:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key TEXT UNIQUE NOT NULL,
                 value TEXT NOT NULL,
-                type TEXT NOT NULL CHECK (type IN ('string', 'integer', 'boolean', 'json')),
+                type TEXT NOT NULL
+                    CHECK (type IN ('string', 'integer', 'boolean', 'json')),
                 description TEXT,
                 is_sensitive BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -146,7 +134,8 @@ class DatabaseConfig:
                 config JSON DEFAULT '{}',
                 capabilities JSON DEFAULT '[]',
                 dependencies JSON DEFAULT '[]',
-                status TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'error', 'loading')),
+                status TEXT DEFAULT 'inactive'
+                    CHECK (status IN ('active', 'inactive', 'error', 'loading')),
                 error_message TEXT,
                 installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 installed_by TEXT,
@@ -165,7 +154,9 @@ class DatabaseConfig:
                 params JSON,
                 result JSON,
                 error_message TEXT,
-                status TEXT NOT NULL CHECK (status IN ('pending', 'executing', 'success', 'failed', 'timeout')),
+                status TEXT NOT NULL
+                    CHECK (status IN (
+                        'pending', 'executing', 'success', 'failed', 'timeout')),
                 duration_ms INTEGER,
                 api_key_id INTEGER,
                 plugin_id INTEGER,
@@ -183,7 +174,8 @@ class DatabaseConfig:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 metric_name TEXT NOT NULL,
                 metric_value REAL NOT NULL,
-                metric_type TEXT CHECK (metric_type IN ('counter', 'gauge', 'histogram', 'summary')),
+                metric_type TEXT
+                    CHECK (metric_type IN ('counter', 'gauge', 'histogram', 'summary')),
                 tags JSON DEFAULT '{}',
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 CHECK (metric_value >= 0 OR metric_type = 'gauge')
@@ -196,7 +188,8 @@ class DatabaseConfig:
                 event_type TEXT NOT NULL,
                 event_name TEXT NOT NULL,
                 description TEXT,
-                severity TEXT CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+                severity TEXT
+                    CHECK (severity IN ('info', 'warning', 'error', 'critical')),
                 source TEXT,
                 context JSON,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -207,13 +200,19 @@ class DatabaseConfig:
             CREATE TABLE IF NOT EXISTS mcp_servers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
-                server_type TEXT NOT NULL CHECK (server_type IN ('firebase', 'bigquery', 'github', 'n8n', 'docker_hub', 'slack')),
+                server_type TEXT NOT NULL
+                    CHECK (server_type IN (
+                        'firebase', 'bigquery', 'github', 'n8n',
+                        'docker_hub', 'slack')),
                 display_name TEXT NOT NULL,
                 description TEXT,
                 config JSON NOT NULL DEFAULT '{}',
                 credentials JSON NOT NULL DEFAULT '{}',
-                communication_method TEXT DEFAULT 'stdio' CHECK (communication_method IN ('stdio', 'http', 'python', 'subprocess')),
-                status TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'error', 'configuring')),
+                communication_method TEXT DEFAULT 'stdio'
+                    CHECK (communication_method IN (
+                        'stdio', 'http', 'python', 'subprocess')),
+                status TEXT DEFAULT 'inactive'
+                    CHECK (status IN ('active', 'inactive', 'error', 'configuring')),
                 version TEXT,
                 last_sync TIMESTAMP,
                 error_message TEXT,
@@ -234,16 +233,43 @@ class DatabaseConfig:
             "CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name)",
             "CREATE INDEX IF NOT EXISTS idx_plugins_status ON plugins(status)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_command_history_command_id ON command_history(command_id)",
-            "CREATE INDEX IF NOT EXISTS idx_command_history_status ON command_history(status)",
-            "CREATE INDEX IF NOT EXISTS idx_command_history_created ON command_history(created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_metrics_name_time ON metrics(metric_name, timestamp)",
-            "CREATE INDEX IF NOT EXISTS idx_system_events_type ON system_events(event_type)",
-            "CREATE INDEX IF NOT EXISTS idx_system_events_created ON system_events(created_at)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_servers_name ON mcp_servers(name)",
-            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_type ON mcp_servers(server_type)",
+            (
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_command_history_command_id ON"
+                " command_history(command_id)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_command_history_status ON"
+                " command_history(status)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_command_history_created ON"
+                " command_history(created_at)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_metrics_name_time ON"
+                " metrics(metric_name, timestamp)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_system_events_type ON"
+                " system_events(event_type)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_system_events_created ON"
+                " system_events(created_at)"
+            ),
+            (
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_servers_name ON"
+                " mcp_servers(name)"
+            ),
+            (
+                "CREATE INDEX IF NOT EXISTS idx_mcp_servers_type ON"
+                " mcp_servers(server_type)"
+            ),
             "CREATE INDEX IF NOT EXISTS idx_mcp_servers_status ON mcp_servers(status)",
-            "CREATE INDEX IF NOT EXISTS idx_mcp_servers_updated ON mcp_servers(updated_at)",
+            (
+                "CREATE INDEX IF NOT EXISTS idx_mcp_servers_updated ON"
+                " mcp_servers(updated_at)"
+            ),
         ]
 
         try:
@@ -283,14 +309,16 @@ class DatabaseConfig:
             for key, value, type_val, desc in default_configs:
                 if self.is_turso:
                     self.client.execute(
-                        "INSERT OR IGNORE INTO config (key, value, type, description) VALUES (?, ?, ?, ?)",
+                        "INSERT OR IGNORE INTO config (key, value, type, description)"
+                        " VALUES (?, ?, ?, ?)",
                         [key, value, type_val, desc],
                     )
                 else:
                     async with self.session_maker() as session:
-                        result = await session.execute(
+                        await session.execute(
                             text(
-                                "INSERT OR IGNORE INTO config (key, value, type, description) VALUES (:key, :value, :type, :desc)"
+                                "INSERT OR IGNORE INTO config (key, value, type,"
+                                " description) VALUES (:key, :value, :type, :desc)"
                             ),
                             {
                                 "key": key,
@@ -361,7 +389,8 @@ class DatabaseManager:
         """Log a command execution"""
         try:
             query = """
-                INSERT INTO command_history (command_id, command, params, status, api_key_id, plugin_id)
+                INSERT INTO command_history
+                (command_id, command, params, status, api_key_id, plugin_id)
                 VALUES (?, ?, ?, 'pending', ?, ?)
             """
 
@@ -378,8 +407,9 @@ class DatabaseManager:
                 )
             else:
                 await self.execute_query(
-                    "INSERT INTO command_history (command_id, command, params, status, api_key_id, plugin_id) "
-                    "VALUES (:command_id, :command, :params, 'pending', :api_key_id, :plugin_id)",
+                    "INSERT INTO command_history (command_id, command, params, status,"
+                    " api_key_id, plugin_id) VALUES (:command_id, :command, :params,"
+                    " 'pending', :api_key_id, :plugin_id)",
                     {
                         "command_id": command_id,
                         "command": command,
@@ -406,7 +436,8 @@ class DatabaseManager:
         try:
             query = """
                 UPDATE command_history
-                SET status = ?, result = ?, error_message = ?, duration_ms = ?, completed_at = CURRENT_TIMESTAMP
+                SET status = ?, result = ?, error_message = ?, duration_ms = ?,
+                    completed_at = CURRENT_TIMESTAMP
                 WHERE command_id = ?
             """
 
@@ -423,9 +454,9 @@ class DatabaseManager:
                 )
             else:
                 await self.execute_query(
-                    "UPDATE command_history SET status = :status, result = :result, "
-                    "error_message = :error, duration_ms = :duration_ms, completed_at = CURRENT_TIMESTAMP "
-                    "WHERE command_id = :command_id",
+                    "UPDATE command_history SET status = :status, result = :result,"
+                    " error_message = :error, duration_ms = :duration_ms, completed_at"
+                    " = CURRENT_TIMESTAMP WHERE command_id = :command_id",
                     {
                         "status": status,
                         "result": json.dumps(result) if result else None,
@@ -457,8 +488,8 @@ class DatabaseManager:
                 )
             else:
                 await self.execute_query(
-                    "INSERT INTO metrics (metric_name, metric_value, metric_type, tags) "
-                    "VALUES (:name, :value, :type, :tags)",
+                    "INSERT INTO metrics (metric_name, metric_value, metric_type, tags)"
+                    " VALUES (:name, :value, :type, :tags)",
                     {
                         "name": name,
                         "value": value,
@@ -527,7 +558,8 @@ async def log_system_event(
     """Log a system event"""
     try:
         query = """
-            INSERT INTO system_events (event_type, event_name, description, severity, source, context)
+            INSERT INTO system_events
+                (event_type, event_name, description, severity, source, context)
             VALUES (?, ?, ?, ?, ?, ?)
         """
 
@@ -545,8 +577,9 @@ async def log_system_event(
             )
         else:
             await db_manager.execute_query(
-                "INSERT INTO system_events (event_type, event_name, description, severity, source, context) "
-                "VALUES (:event_type, :event_name, :description, :severity, :source, :context)",
+                "INSERT INTO system_events (event_type, event_name, description,"
+                " severity, source, context) VALUES (:event_type, :event_name,"
+                " :description, :severity, :source, :context)",
                 {
                     "event_type": event_type,
                     "event_name": event_name,
@@ -561,10 +594,6 @@ async def log_system_event(
 
     except Exception as e:
         logger.error(f"❌ Failed to log system event: {e}")
-
-
-# Import required for JSON handling
-import json
 
 
 # MCP Server Management Functions
@@ -619,11 +648,11 @@ async def register_mcp_server(
             )
         else:
             await db_manager.execute_query(
-                "INSERT OR REPLACE INTO mcp_servers "
-                "(name, server_type, display_name, description, config, credentials, "
-                "communication_method, status, created_by, updated_by) "
-                "VALUES (:name, :server_type, :display_name, :description, :config, "
-                ":credentials, :communication_method, 'inactive', :created_by, :updated_by)",
+                "INSERT OR REPLACE INTO mcp_servers (name, server_type, display_name,"
+                " description, config, credentials, communication_method, status,"
+                " created_by, updated_by) VALUES (:name, :server_type, :display_name,"
+                " :description, :config, :credentials, :communication_method,"
+                " 'inactive', :created_by, :updated_by)",
                 {
                     "name": name,
                     "server_type": server_type,
@@ -792,7 +821,9 @@ async def initialize_default_mcp_servers():
             "name": "firebase_mcp",
             "server_type": "firebase",
             "display_name": "Firebase MCP Server",
-            "description": "Google Firebase CLI MCP server integration for DiagnosticPro",
+            "description": (
+                "Google Firebase CLI MCP server integration for DiagnosticPro"
+            ),
             "config": {
                 "project_id": "diagnostic-pro-start-up",
                 "region": "us-central1",

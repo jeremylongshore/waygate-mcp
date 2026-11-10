@@ -4,17 +4,14 @@ MCP Integration Module for Waygate MCP
 Handles initialization and management of integrated MCP servers
 """
 
-import os
-import json
-import asyncio
 import logging
-from typing import Dict, Any, List, Optional
+import os
+from typing import Any, Dict, List
 
 from .database import (
     db_manager,
     initialize_default_mcp_servers,
     list_mcp_servers,
-    get_mcp_server,
     update_mcp_server_status,
 )
 from .plugins.plugin_loader import get_plugin_loader
@@ -55,7 +52,7 @@ class MCPIntegrationManager:
 
             self.is_initialized = True
             logger.info(
-                f"✅ MCP integration system initialized with "
+                "✅ MCP integration system initialized with "
                 f"{len(self.mcp_servers)} active MCP servers"
             )
 
@@ -211,8 +208,7 @@ class MCPIntegrationManager:
             credentials = {k: v for k, v in credentials.items() if v is not None}
 
             logger.debug(
-                f"🔑 Loaded credentials for {server_type}: "
-                f"{list(credentials.keys())}"
+                f"🔑 Loaded credentials for {server_type}: {list(credentials.keys())}"
             )
 
         except Exception as e:
