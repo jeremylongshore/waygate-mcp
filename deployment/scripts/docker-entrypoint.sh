@@ -94,7 +94,7 @@ main() {
     echo "[INFO] Starting Waygate MCP Server..."
 
     # Start application with proper signal handling
-    exec python3 -u /app/src/waygate_mcp.py \
+    exec python3 -u -m source.waygate_mcp \
         --host "${WAYGATE_HOST:-0.0.0.0}" \
         --port "${WAYGATE_PORT:-8000}" \
         --workers "${WAYGATE_WORKERS:-4}" \

@@ -1,3 +1,14 @@
+# Release v2.2.1
+
+**Release Date**: 2026-11-10
+
+## Changes since v2.2.0
+
+- chore: release v2.2.1 [skip ci] (0c7b3be)
+- fix(ci): pin tools and repair Waygate quality gates (#5) (e764164)
+
+---
+
 # Release v2.2.0
 
 **Release Date**: 2026-09-20

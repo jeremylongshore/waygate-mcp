@@ -19,7 +19,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # SSL/TLS handling
-certifi==2023.11.17
+certifi==2026.10.19
 pyopenssl==23.3.0
 
 # Network and proxy libraries

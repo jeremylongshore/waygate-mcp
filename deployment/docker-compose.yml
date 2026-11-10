@@ -85,7 +85,7 @@ services:
       - SLACK_WORKSPACE=${SLACK_WORKSPACE:-intent-solutions}
 
       # MCP Configuration
-      - MCP_SERVERS_ENABLED=${MCP_SERVERS_ENABLED:-firebase,bigquery,github}
+      - MCP_SERVERS_ENABLED=${MCP_SERVERS_ENABLED-firebase,bigquery,github}
       - MCP_AUTO_INITIALIZE=${MCP_AUTO_INITIALIZE:-true}
 
     # Security: Network isolation
