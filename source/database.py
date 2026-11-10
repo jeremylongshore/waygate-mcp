@@ -7,6 +7,7 @@ Turso (SQLite in the cloud) implementation with comprehensive schema
 import json
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -15,7 +16,12 @@ import libsql_client
 from sqlalchemy import (
     text,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import declarative_base
 
 logger = logging.getLogger("waygate_mcp.database")
@@ -26,11 +32,30 @@ Base = declarative_base()
 class DatabaseConfig:
     """Database configuration and connection management"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.database_url = self._get_database_url()
         self.is_turso = self._is_turso_url(self.database_url)
-        self.engine = None
-        self.session_maker = None
+        self._engine: AsyncEngine | None = None
+        self._session_maker: async_sessionmaker[AsyncSession] | None = None
+        self._client: libsql_client.ClientSync | None = None
+
+    @property
+    def engine(self) -> AsyncEngine:
+        if self._engine is None:
+            raise RuntimeError("SQLite database has not been initialized")
+        return self._engine
+
+    @property
+    def session_maker(self) -> async_sessionmaker[AsyncSession]:
+        if self._session_maker is None:
+            raise RuntimeError("SQLite database has not been initialized")
+        return self._session_maker
+
+    @property
+    def client(self) -> libsql_client.ClientSync:
+        if self._client is None:
+            raise RuntimeError("Turso database has not been initialized")
+        return self._client
 
     def _get_database_url(self) -> str:
         """Get database URL from environment with validation"""
@@ -55,20 +80,24 @@ class DatabaseConfig:
         """Check if URL is for Turso (libsql://)"""
         return url.startswith("libsql://")
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize database connection and create tables"""
         try:
             if self.is_turso:
                 # Use libsql-client for Turso
-                self.client = libsql_client.create_client_sync(self.database_url)
+                self._client = libsql_client.create_client_sync(self.database_url)
                 logger.info("✅ Connected to Turso database")
             else:
                 # Fallback to SQLite for local development
                 if not self.database_url.startswith("sqlite"):
                     self.database_url = "sqlite:///./waygate.db"
 
-                self.engine = create_async_engine(self.database_url, echo=False)
-                self.session_maker = async_sessionmaker(
+                if self.database_url.startswith("sqlite://"):
+                    self.database_url = self.database_url.replace(
+                        "sqlite://", "sqlite+aiosqlite://", 1
+                    )
+                self._engine = create_async_engine(self.database_url, echo=False)
+                self._session_maker = async_sessionmaker(
                     self.engine, class_=AsyncSession
                 )
                 logger.info("✅ Connected to SQLite database")
@@ -81,7 +110,7 @@ class DatabaseConfig:
             logger.error(f"❌ Database initialization failed: {e}")
             raise
 
-    async def _create_tables(self):
+    async def _create_tables(self) -> None:
         """Create all tables using the comprehensive schema"""
 
         # Table creation SQL (from your comprehensive schema)
@@ -290,7 +319,7 @@ class DatabaseConfig:
             logger.error(f"❌ Failed to create tables: {e}")
             raise
 
-    async def _insert_default_config(self):
+    async def _insert_default_config(self) -> None:
         """Insert default configuration values"""
         default_configs = [
             (
@@ -338,42 +367,28 @@ class DatabaseConfig:
 class DatabaseManager:
     """Main database manager for Waygate MCP"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = DatabaseConfig()
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the database"""
         await self.config.initialize()
 
     async def execute_query(
-        self, query: str, params: Optional[Dict] = None
-    ) -> List[Dict]:
-        """Execute a query and return results"""
+        self, query: str, params: Dict[str, Any] | List[Any] | None = None
+    ) -> List[Dict[str, Any]]:
+        """Execute named or positional binds without interpolating caller values."""
         try:
             if self.config.is_turso:
-                if params:
-                    result = self.config.client.execute(
-                        query,
-                        list(params.values()) if isinstance(params, dict) else params,
-                    )
-                else:
-                    result = self.config.client.execute(query)
+                result = self.config.client.execute(query, params)
+                return [dict(zip(result.columns, row)) for row in result.rows]
 
-                # Convert to list of dicts
-                if hasattr(result, "rows") and hasattr(result, "columns"):
-                    return [dict(zip(result.columns, row)) for row in result.rows]
+            async with self.config.engine.begin() as connection:
+                bindings = tuple(params) if isinstance(params, list) else params or {}
+                sql_result = await connection.exec_driver_sql(query, bindings)
+                if sql_result.returns_rows:
+                    return [dict(row) for row in sql_result.mappings().all()]
                 return []
-
-            else:
-                async with self.config.session_maker() as session:
-                    result = await session.execute(text(query), params or {})
-                    await session.commit()
-
-                    if result.returns_rows:
-                        rows = result.fetchall()
-                        return [dict(row._mapping) for row in rows]
-                    return []
-
         except Exception as e:
             logger.error(f"❌ Query execution failed: {e}")
             raise
@@ -382,10 +397,10 @@ class DatabaseManager:
         self,
         command_id: str,
         command: str,
-        params: Dict = None,
-        api_key_id: int = None,
-        plugin_id: int = None,
-    ):
+        params: Dict | None = None,
+        api_key_id: int | None = None,
+        plugin_id: int | None = None,
+    ) -> None:
         """Log a command execution"""
         try:
             query = """
@@ -428,10 +443,10 @@ class DatabaseManager:
         self,
         command_id: str,
         status: str,
-        result: Dict = None,
-        error: str = None,
-        duration_ms: int = None,
-    ):
+        result: Dict | None = None,
+        error: str | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
         """Update command execution status"""
         try:
             query = """
@@ -472,8 +487,12 @@ class DatabaseManager:
             logger.error(f"❌ Failed to update command status: {e}")
 
     async def record_metric(
-        self, name: str, value: float, metric_type: str = "gauge", tags: Dict = None
-    ):
+        self,
+        name: str,
+        value: float,
+        metric_type: str = "gauge",
+        tags: Dict | None = None,
+    ) -> None:
         """Record a metric"""
         try:
             query = """
@@ -529,7 +548,7 @@ db_manager = DatabaseManager()
 
 # Async context manager for database operations
 @asynccontextmanager
-async def get_db():
+async def get_db() -> AsyncIterator[DatabaseManager]:
     """Get database session context manager"""
     try:
         yield db_manager
@@ -542,7 +561,7 @@ async def get_db():
 
 
 # Helper functions for common operations
-async def init_database():
+async def init_database() -> None:
     """Initialize database (called at startup)"""
     await db_manager.initialize()
 
@@ -550,11 +569,11 @@ async def init_database():
 async def log_system_event(
     event_type: str,
     event_name: str,
-    description: str = None,
+    description: str | None = None,
     severity: str = "info",
-    source: str = None,
-    context: Dict = None,
-):
+    source: str | None = None,
+    context: Dict | None = None,
+) -> None:
     """Log a system event"""
     try:
         query = """
@@ -601,9 +620,9 @@ async def register_mcp_server(
     name: str,
     server_type: str,
     display_name: str,
-    description: str = None,
-    config: Dict[str, Any] = None,
-    credentials: Dict[str, Any] = None,
+    description: str | None = None,
+    config: Dict[str, Any] | None = None,
+    credentials: Dict[str, Any] | None = None,
     communication_method: str = "stdio",
     created_by: str = "system",
 ) -> bool:
@@ -703,7 +722,7 @@ async def get_mcp_server(name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-async def list_mcp_servers(status: str = None) -> List[Dict[str, Any]]:
+async def list_mcp_servers(status: str | None = None) -> List[Dict[str, Any]]:
     """
     List all MCP servers, optionally filtered by status
 
@@ -738,7 +757,10 @@ async def list_mcp_servers(status: str = None) -> List[Dict[str, Any]]:
 
 
 async def update_mcp_server_status(
-    name: str, status: str, error_message: str = None, tool_count: int = None
+    name: str,
+    status: str,
+    error_message: str | None = None,
+    tool_count: int | None = None,
 ) -> bool:
     """
     Update MCP server status
@@ -754,7 +776,7 @@ async def update_mcp_server_status(
     """
     try:
         update_fields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"]
-        params = [status]
+        params: List[Any] = [status]
 
         if error_message is not None:
             update_fields.append("error_message = ?")
@@ -814,9 +836,9 @@ async def delete_mcp_server(name: str) -> bool:
         return False
 
 
-async def initialize_default_mcp_servers():
+async def initialize_default_mcp_servers() -> None:
     """Initialize default MCP server configurations"""
-    default_servers = [
+    default_servers: List[Dict[str, Any]] = [
         {
             "name": "firebase_mcp",
             "server_type": "firebase",

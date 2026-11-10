@@ -44,7 +44,7 @@ logger = logging.getLogger("waygate_mcp.tools")
 class MCPToolsHandler:
     """Handler for all MCP tools with security validation"""
 
-    def __init__(self, base_path: str = "/home/jeremy"):
+    def __init__(self, base_path: str = "/home/jeremy") -> None:
         self.base_path = Path(base_path)
         self.allowed_paths = [
             self.base_path / "waygate-mcp",
@@ -446,7 +446,7 @@ class MCPToolsHandler:
 
         except MCPToolError:
             raise
-        except aiohttp.ClientTimeout:
+        except asyncio.TimeoutError:
             raise MCPToolError(f"Request timeout after {timeout} seconds")
         except aiohttp.ClientError as e:
             raise MCPToolError(f"HTTP client error: {str(e)}")

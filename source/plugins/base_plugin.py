@@ -17,7 +17,7 @@ class BasePlugin(ABC):
     4. Drop it in the plugins folder - it auto-loads!
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name = self.__class__.__name__
         self.version = "1.0.0"
         self.description = "A Waygate MCP Plugin"
@@ -57,7 +57,7 @@ class BasePlugin(ABC):
         """
         pass
 
-    def get_info(self) -> Dict[str, str]:
+    def get_info(self) -> Dict[str, Any]:
         """
         Get plugin information.
         """

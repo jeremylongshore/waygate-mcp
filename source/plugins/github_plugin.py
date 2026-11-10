@@ -14,8 +14,9 @@ class GitHubPlugin(BasePlugin):
     Simple GitHub integration for non-technical users.
     """
 
-    def __init__(self):
+    def __init__(self, data_dir: str = "/app/data") -> None:
         super().__init__()
+        self.data_dir = data_dir
         self.name = "GitHub Integration"
         self.version = "1.0.0"
         self.description = (
@@ -232,7 +233,7 @@ Give a ⭐️ if this project helped you!
 """
 
         # Save to file
-        readme_path = "/app/data/README_template.md"
+        readme_path = os.path.join(self.data_dir, "README_template.md")
         os.makedirs(os.path.dirname(readme_path), exist_ok=True)
         with open(readme_path, "w") as f:
             f.write(readme_content)

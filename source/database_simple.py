@@ -16,14 +16,14 @@ logger = logging.getLogger("waygate_mcp.database_simple")
 class SimpleDatabaseManager:
     """Simplified database manager using only SQLite"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.db_path = os.getenv("DATABASE_URL", "sqlite:///./waygate.db").replace(
             "sqlite:///", ""
         )
         if not self.db_path.endswith(".db"):
             self.db_path = "./waygate.db"
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize database with basic schema"""
         try:
             # Create database and basic tables
@@ -100,7 +100,7 @@ class SimpleDatabaseManager:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-    def record_event(self, event_type: str, description: str = None):
+    def record_event(self, event_type: str, description: str | None = None) -> None:
         """Record a simple event"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -120,7 +120,7 @@ simple_db = SimpleDatabaseManager()
 
 
 # Compatibility functions
-async def init_database():
+async def init_database() -> None:
     """Initialize database (called at startup)"""
     await simple_db.initialize()
 

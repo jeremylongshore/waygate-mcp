@@ -6,7 +6,7 @@ Handles initialization and management of integrated MCP servers
 
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypedDict
 
 from .database import (
     db_manager,
@@ -14,9 +14,16 @@ from .database import (
     list_mcp_servers,
     update_mcp_server_status,
 )
-from .plugins.plugin_loader import get_plugin_loader
+from .plugins.base_plugin import BasePlugin
+from .plugins.plugin_loader import PluginLoader, get_plugin_loader
 
 logger = logging.getLogger("waygate_mcp.mcp_integration")
+
+
+class ServerInfo(TypedDict):
+    config: Dict[str, Any]
+    plugin: BasePlugin
+    status: str
 
 
 class MCPIntegrationManager:
@@ -30,12 +37,12 @@ class MCPIntegrationManager:
     - Providing unified access to all MCP tools
     """
 
-    def __init__(self):
-        self.plugin_loader = None
-        self.mcp_servers = {}
+    def __init__(self) -> None:
+        self.plugin_loader: PluginLoader | None = None
+        self.mcp_servers: Dict[str, ServerInfo] = {}
         self.is_initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the MCP integration system"""
         try:
             logger.info("🚀 Initializing MCP integration system...")
@@ -60,7 +67,7 @@ class MCPIntegrationManager:
             logger.error(f"❌ MCP integration initialization failed: {e}")
             raise
 
-    async def _initialize_default_configurations(self):
+    async def _initialize_default_configurations(self) -> None:
         """Initialize default MCP server configurations"""
         try:
             # Check if we already have MCP servers configured
@@ -75,7 +82,7 @@ class MCPIntegrationManager:
         except Exception as e:
             logger.error(f"❌ Failed to initialize default MCP configurations: {e}")
 
-    async def _load_enabled_mcp_servers(self):
+    async def _load_enabled_mcp_servers(self) -> None:
         """Load and configure enabled MCP servers"""
         try:
             # Get list of enabled MCP servers from environment
@@ -95,7 +102,7 @@ class MCPIntegrationManager:
         except Exception as e:
             logger.error(f"❌ Failed to load enabled MCP servers: {e}")
 
-    async def _load_mcp_server(self, server_type: str):
+    async def _load_mcp_server(self, server_type: str) -> None:
         """Load a specific MCP server by type"""
         try:
             # Find MCP server configuration by type
@@ -110,6 +117,9 @@ class MCPIntegrationManager:
             if not server_config:
                 logger.error(f"❌ MCP server configuration not found: {server_type}")
                 return
+
+            if self.plugin_loader is None:
+                raise RuntimeError("Plugin loader has not been initialized")
 
             # Get the corresponding plugin
             plugin_name = f"{server_type}_mcp_plugin"
@@ -370,12 +380,12 @@ class MCPIntegrationManager:
 mcp_integration_manager = MCPIntegrationManager()
 
 
-async def initialize_mcp_integration():
+async def initialize_mcp_integration() -> None:
     """Initialize the MCP integration system"""
     await mcp_integration_manager.initialize()
 
 
-async def get_mcp_manager():
+async def get_mcp_manager() -> MCPIntegrationManager:
     """Get the global MCP integration manager"""
     if not mcp_integration_manager.is_initialized:
         await mcp_integration_manager.initialize()

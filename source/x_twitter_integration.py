@@ -22,7 +22,7 @@ class XTwitterAPI:
     NOTE: Consider migrating to OAuth 1.0a for permanent authentication
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = "https://api.x.com/2"
         self.bearer_token = self._get_bearer_token()
         self.oauth1a_available = self._check_oauth1a_availability()
@@ -146,7 +146,7 @@ class XTwitterAPI:
                 "oauth1a_available": self.oauth1a_available,
             }
 
-    async def post_tweet(self, text: str, **kwargs) -> Dict[str, Any]:
+    async def post_tweet(self, text: str, **kwargs: Any) -> Dict[str, Any]:
         """Post a tweet to X/Twitter"""
         try:
             if not text or len(text.strip()) == 0:
@@ -160,7 +160,7 @@ class XTwitterAPI:
             headers = self._get_auth_headers()
 
             # Prepare tweet data
-            tweet_data = {"text": text}
+            tweet_data: Dict[str, Any] = {"text": text}
 
             # Add optional parameters
             if kwargs.get("reply_to_id"):

@@ -4,6 +4,8 @@ Plugin Loader for Waygate MCP
 Handles dynamic loading of plugins and MCP server integrations
 """
 
+from __future__ import annotations
+
 import asyncio
 import importlib
 import json
@@ -11,7 +13,10 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict
+
+if TYPE_CHECKING:
+    from ..database import DatabaseManager
 
 from .base_plugin import BasePlugin
 
@@ -22,6 +27,13 @@ class PluginLoadError(Exception):
     """Exception raised when plugin loading fails"""
 
     pass
+
+
+class PluginStats(TypedDict):
+    total_loaded: int
+    total_failed: int
+    last_load_time: datetime | None
+    mcp_servers_active: int
 
 
 class PluginLoader:
@@ -36,7 +48,7 @@ class PluginLoader:
     - Error handling and recovery
     """
 
-    def __init__(self, db_manager=None):
+    def __init__(self, db_manager: DatabaseManager | None = None) -> None:
         self.db_manager = db_manager
         self.loaded_plugins: Dict[str, BasePlugin] = {}
         self.plugin_configs: Dict[str, Dict[str, Any]] = {}
@@ -44,7 +56,7 @@ class PluginLoader:
         self.plugins_directory = Path(__file__).parent
 
         # Plugin status tracking
-        self.plugin_stats = {
+        self.plugin_stats: PluginStats = {
             "total_loaded": 0,
             "total_failed": 0,
             "last_load_time": None,
@@ -86,7 +98,7 @@ class PluginLoader:
         """
         try:
             # Import the plugin module
-            module_name = f"plugins.{plugin_name}"
+            module_name = f"{__package__}.{plugin_name}"
 
             # Remove from sys.modules if already imported (for hot-reloading)
             if module_name in sys.modules:
@@ -192,7 +204,7 @@ class PluginLoader:
             logger.error(f"❌ Failed to load plugins: {e}")
             return {}
 
-    async def load_mcp_server_plugins(self):
+    async def load_mcp_server_plugins(self) -> None:
         """
         Load MCP server configurations from database
         """
@@ -391,7 +403,9 @@ class PluginLoader:
             "mcp_servers": mcp_server_list,
         }
 
-    async def _load_plugin_config(self, plugin_name: str, plugin_instance: BasePlugin):
+    async def _load_plugin_config(
+        self, plugin_name: str, plugin_instance: BasePlugin
+    ) -> None:
         """
         Load configuration for a plugin from database
 
@@ -423,7 +437,7 @@ class PluginLoader:
 
     async def _update_plugin_status(
         self, plugin_name: str, status: str, error_message: Optional[str] = None
-    ):
+    ) -> None:
         """
         Update plugin status in database
 
@@ -470,10 +484,10 @@ class PluginLoader:
 
 
 # Global plugin loader instance
-plugin_loader = None
+plugin_loader: PluginLoader | None = None
 
 
-async def get_plugin_loader(db_manager=None):
+async def get_plugin_loader(db_manager: DatabaseManager | None = None) -> PluginLoader:
     """
     Get the global plugin loader instance
 
@@ -493,7 +507,7 @@ async def get_plugin_loader(db_manager=None):
     return plugin_loader
 
 
-async def initialize_plugins(db_manager=None):
+async def initialize_plugins(db_manager: DatabaseManager | None = None) -> None:
     """
     Initialize the plugin system
 

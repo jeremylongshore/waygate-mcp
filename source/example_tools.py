@@ -14,15 +14,15 @@ class ExampleTools:
     Each tool shows a common use case with clear comments.
     """
 
-    def __init__(self):
-        self.data_dir = "/app/data"
+    def __init__(self, data_dir: str = "/app/data") -> None:
+        self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
 
     # ============================================
     # EXAMPLE 1: Simple Note Taking
     # ============================================
     async def save_note(
-        self, title: str, content: str, tags: List[str] = None
+        self, title: str, content: str, tags: List[str] | None = None
     ) -> Dict[str, Any]:
         """
         Save a note with optional tags.
@@ -32,8 +32,9 @@ class ExampleTools:
                 "Meeting Notes", "Discussed project timeline", ["work", "important"]
             )
         """
+        note_id = datetime.now().isoformat()
         note = {
-            "id": datetime.now().isoformat(),
+            "id": note_id,
             "title": title,
             "content": content,
             "tags": tags or [],
@@ -41,7 +42,7 @@ class ExampleTools:
         }
 
         # Save to file (simple JSON storage)
-        filename = f"{self.data_dir}/note_{note['id'].replace(':', '-')}.json"
+        filename = f"{self.data_dir}/note_{note_id.replace(':', '-')}.json"
         with open(filename, "w") as f:
             json.dump(note, f, indent=2)
 

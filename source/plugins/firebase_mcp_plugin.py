@@ -30,7 +30,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
     enabling seamless Firebase operations through the unified Waygate interface.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Firebase MCP Integration"
         self.version = "1.0.0"
@@ -77,7 +77,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             ],
         }
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize Firebase MCP plugin"""
         logger.info("🔥 Initializing Firebase MCP plugin...")
 
@@ -91,7 +91,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             f"✅ Firebase MCP plugin initialized with {len(self.mcp_tools)} tools"
         )
 
-    async def _load_firebase_credentials(self):
+    async def _load_firebase_credentials(self) -> None:
         """Load Firebase credentials from environment"""
         try:
             # Firebase project configuration
@@ -478,7 +478,7 @@ class FirebaseMCPPlugin(MCPBridgePlugin):
             }
 
         # Use Firebase MCP to deploy functions
-        deploy_params = {
+        deploy_params: Dict[str, Any] = {
             "only": (
                 f"functions:{function_name}" if function_name != "all" else "functions"
             )

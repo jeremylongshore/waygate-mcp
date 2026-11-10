@@ -12,14 +12,14 @@ from typing import Any, Dict
 import click
 import uvicorn
 
-# Simple database
-from database_simple import init_database, simple_db
-
 # FastAPI imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
+
+# Simple database
+from .database_simple import init_database, simple_db
 
 # Configure logging
 logging.basicConfig(
@@ -64,7 +64,7 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/", tags=["Core"])
-    async def root():
+    async def root() -> Dict[str, Any]:
         """Root endpoint"""
         return {
             "service": "Waygate MCP - Simplified",
@@ -76,18 +76,18 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/health", response_model=HealthCheck, tags=["Core"])
-    async def health():
+    async def health() -> HealthCheck:
         """Health check endpoint"""
         db_status = await simple_db.get_health_status()
         return HealthCheck(status="healthy", database=db_status)
 
     @app.get("/ready", tags=["Core"])
-    async def ready():
+    async def ready() -> Dict[str, Any]:
         """Readiness check"""
         return {"ready": True, "timestamp": datetime.utcnow().isoformat()}
 
     @app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
-    async def metrics():
+    async def metrics() -> str:
         """Basic metrics"""
         return """# Simple Waygate MCP Metrics
 waygate_status 1
@@ -96,7 +96,7 @@ waygate_database_status 1
 """
 
     @app.post("/mcp/execute", tags=["MCP"])
-    async def execute_mcp(command: MCPCommand):
+    async def execute_mcp(command: MCPCommand) -> Dict[str, Any]:
         """Execute MCP command (simplified)"""
         simple_db.record_event("mcp_command", f"Action: {command.action}")
 
@@ -109,7 +109,7 @@ waygate_database_status 1
         }
 
     @app.get("/mcp/status", tags=["MCP"])
-    async def mcp_status():
+    async def mcp_status() -> Dict[str, Any]:
         """MCP status (simplified)"""
         return {
             "engine": "simplified",
@@ -120,7 +120,7 @@ waygate_database_status 1
         }
 
     @app.get("/proxy/health", tags=["Proxy"])
-    async def proxy_health():
+    async def proxy_health() -> Dict[str, Any]:
         """Proxy health check"""
         return {
             "proxy": "operational",
@@ -131,7 +131,7 @@ waygate_database_status 1
     return app
 
 
-async def startup():
+async def startup() -> None:
     """Startup initialization"""
     logger.info("🚀 Starting Waygate MCP - Simplified")
     await init_database()
@@ -142,14 +142,14 @@ async def startup():
 @click.option("--host", default="0.0.0.0", help="Host to bind to")
 @click.option("--port", default=8000, type=int, help="Port to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload")
-def main(host: str, port: int, reload: bool):
+def main(host: str, port: int, reload: bool) -> None:
     """Waygate MCP - Simplified Server"""
 
     app = create_app()
 
     # Add startup event
     @app.on_event("startup")
-    async def startup_event():
+    async def startup_event() -> None:
         await startup()
 
     print(f"""
