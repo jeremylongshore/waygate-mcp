@@ -7,6 +7,8 @@ import json
 import os
 from datetime import datetime
 
+from source.arithmetic import calculate_expression
+
 class ExampleTools:
     """
     Simple example tools that anyone can understand and modify.
@@ -133,20 +135,8 @@ class ExampleTools:
             await calculate("150 / 3")
         """
         try:
-            # Only allow safe mathematical operations
-            allowed_chars = "0123456789+-*/.() "
-            if all(c in allowed_chars for c in expression):
-                result = eval(expression)
-                return {
-                    "success": True,
-                    "expression": expression,
-                    "result": result
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Invalid characters in expression"
-                }
+            result = calculate_expression(expression)
+            return {"success": True, "expression": expression, "result": result}
         except Exception as e:
             return {
                 "success": False,

@@ -1,0 +1,49 @@
+# Container-optimized dependencies for Waygate MCP
+# Security: Pinned versions for reproducibility
+
+# Core Web Framework
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+gunicorn==26.2.0
+
+# Data Validation
+pydantic==2.14.3
+pydantic-settings==2.16.2
+
+# Async & Networking
+aiofiles==23.2.1
+httpx==0.28.1
+websockets==17.4
+
+# Data Processing
+python-multipart==0.0.33
+passlib[bcrypt]==1.7.4
+
+# Utilities
+python-dotenv==1.2.4
+click==8.5.1
+rich==13.7.0
+structlog==24.1.0
+
+# Monitoring & Diagnostics
+psutil==5.9.0
+prometheus-client==0.19.0
+
+# Database
+sqlalchemy==2.0.0
+alembic==1.13.0
+libsql-client==0.3.1
+aiosqlite==0.19.0
+
+# Security
+cryptography==50.0.2
+certifi==2026.10.19
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Production server
+starlette==1.10.0
+
+# Directly imported by local HTTP tools and provider adapters
+aiohttp==3.14.5

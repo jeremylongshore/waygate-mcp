@@ -1,0 +1,11 @@
+{
+  "input_sha256": {
+    "source/requirements.txt": "d3cd233235bcdd7cb12d110e8d966a3049d6e613bc1dfc02b348b0151884768a",
+    "source/requirements-docker.txt": "b8cb0228f92167b1802208993a48dfd6caa167928d1ad79b9c45b42b9a5a7f8e",
+    "source/requirements-proxy.txt": "348cdba52db21764126162de246f366d8b9612f314f6ef0d87a562db9bd422f5",
+    "source/requirements-dev.txt": "f6f0fb6bd2168eb4d6db294db6269b46daf07478c65275545791efd939779bcf",
+    "requirements.txt": "196d20eb77a1f9c5c352590acaa1239fccc9af8d8ce4d64710ab8e48d187e4d7",
+    ".semgrep.yml": "7ff38c8a0c5f54879544794f2b43c73eae4db749177521f654b83bb05b01921f"
+  },
+  "semgrep_rules": ".semgrep.yml"
+}

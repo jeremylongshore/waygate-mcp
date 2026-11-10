@@ -1,0 +1,8 @@
+{
+  "source/scratch.py": "6e2413196d70abe9dc788dc6484661b7190342393517e0a9a2c9b1ef082f865b",
+  "source/mcp_tools.py": "92a302fd1313e6c42179668a1afacf156787d0b2374d36e9bdc92ae1454899cc",
+  "source/waygate_mcp.py": "235185361d8d351e2c5b68776e134b49729389e0a0ffdd654e334655fe9664fa",
+  "source/waygate_simple.py": "a4b57bded9ddca0f40a799173c436b62408fc10c07ec80179f76773814e8aa9c",
+  "deployment/docker-compose.yml": "916c8a8d06e70b7f423afb3d09f128fbb1a6c634ef22c611316529db544a37e0",
+  "deployment/scripts/ci-smoke.py": "10d6e2e3edd085503af5a5ad53d0a37470dda431a40f2bf0deeb19c87f731db0"
+}

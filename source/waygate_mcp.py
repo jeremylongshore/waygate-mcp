@@ -5,6 +5,7 @@ Successor to NEXUS MCP with stdio-based communication
 """
 
 import asyncio
+import ipaddress
 import logging
 import os
 import secrets
@@ -20,25 +21,31 @@ import structlog
 import uvicorn
 
 # FastAPI and related imports
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from source.version import VERSION as WAYGATE_VERSION
 
 # Waygate MCP modules
-from .database import init_database
-from .mcp_integration import get_mcp_manager, initialize_mcp_integration
+from .database import db_manager, init_database
+from .mcp_integration import (
+    get_mcp_manager,
+    initialize_mcp_integration,
+    mcp_integration_manager,
+)
 from .mcp_tools import execute_tool, get_available_tools
+from .metrics import HTTPMetrics, MetricsMiddleware
 
 # Configure logging
 log_level = os.getenv("WAYGATE_LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("/tmp/waygate_mcp.log"), logging.StreamHandler()],
+    handlers=[logging.StreamHandler()],
 )
 
 # Environment configuration
@@ -84,7 +91,7 @@ class WaygateSettings(BaseSettings):
     )
 
     # Server
-    host: str = Field(default="0.0.0.0", alias="WAYGATE_HOST")
+    host: str = Field(default="127.0.0.1", alias="WAYGATE_HOST")
     port: int = Field(default=8000, alias="WAYGATE_PORT")
     workers: int = Field(default=4, alias="WAYGATE_WORKERS")
     reload: bool = Field(default=False, alias="WAYGATE_RELOAD")
@@ -126,9 +133,13 @@ class WaygateSettings(BaseSettings):
             warnings.append("Using Turso database - ensure connectivity")
 
         # Check host binding
-        if self.host == "0.0.0.0" and self.env == "production":
+        try:
+            unspecified = ipaddress.ip_address(self.host).is_unspecified
+        except ValueError:
+            unspecified = False  # Hostnames are resolved by the server.
+        if unspecified and self.env == "production":
             warnings.append(
-                "Binding to 0.0.0.0 in production - ensure firewall configured"
+                "Binding all network interfaces - ensure firewall configured"
             )
 
         # Check CORS origins
@@ -179,6 +190,7 @@ class WaygateServer:
 
     def __init__(self, settings: WaygateSettings) -> None:
         self.settings = settings
+        self.metrics = HTTPMetrics()
         self.app = self._create_app()
         self.logger = logger.bind(component="server")
         self.start_time = datetime.utcnow()
@@ -203,6 +215,8 @@ class WaygateServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        app.add_middleware(MetricsMiddleware, metrics=self.metrics)
 
         # Add exception handlers
         app.add_exception_handler(HTTPException, self._http_exception_handler)
@@ -263,49 +277,33 @@ class WaygateServer:
             }
 
         @app.get("/health", response_model=HealthCheck, tags=["Core"])
-        async def health() -> HealthCheck:
+        async def health(response: Response) -> HealthCheck:
             """Health check endpoint"""
             uptime = int((datetime.utcnow() - self.start_time).total_seconds())
+            checks = await self._dependency_checks()
+            healthy = all(value in {"ok", "disabled"} for value in checks.values())
+            response.status_code = 200 if healthy else 503
             return HealthCheck(
-                status="healthy",
-                checks={
-                    "database": "ok",
-                    "cache": "ok",
-                    "filesystem": "ok",
-                    "plugins": "ok",
-                },
+                status="healthy" if healthy else "unhealthy",
+                checks=checks,
                 uptime_seconds=uptime,
             )
 
         @app.get("/ready", tags=["Core"])
-        async def ready() -> Dict[str, Any]:
-            """Readiness check endpoint"""
-            # Add actual readiness checks here
-            return {"ready": True}
+        async def ready(response: Response) -> Dict[str, Any]:
+            """Check required dependencies without triggering provider startup."""
+            checks = await self._dependency_checks()
+            ready = all(value in {"ok", "disabled"} for value in checks.values())
+            response.status_code = 200 if ready else 503
+            return {"ready": ready, "checks": checks}
 
         @app.get("/metrics", response_class=PlainTextResponse, tags=["Monitoring"])
-        async def metrics() -> str:
-            """Prometheus metrics endpoint"""
-            # This would integrate with prometheus_client
-            metrics_data = [
-                "# HELP waygate_requests_total Total number of requests",
-                "# TYPE waygate_requests_total counter",
-                "waygate_requests_total 0",
-                "",
-                "# HELP waygate_errors_total Total number of errors",
-                "# TYPE waygate_errors_total counter",
-                "waygate_errors_total 0",
-                "",
-                "# HELP waygate_response_time_seconds Response time in seconds",
-                "# TYPE waygate_response_time_seconds histogram",
-                'waygate_response_time_seconds_bucket{le="0.1"} 0',
-                'waygate_response_time_seconds_bucket{le="0.5"} 0',
-                'waygate_response_time_seconds_bucket{le="1.0"} 0',
-                'waygate_response_time_seconds_bucket{le="+Inf"} 0',
-                "waygate_response_time_seconds_count 0",
-                "waygate_response_time_seconds_sum 0",
-            ]
-            return "\n".join(metrics_data)
+        async def metrics() -> Response:
+            """Expose measured per-process HTTP traffic, excluding scrapes."""
+            return Response(
+                generate_latest(self.metrics.registry),
+                headers={"Content-Type": CONTENT_TYPE_LATEST},
+            )
 
         @app.post("/mcp/execute", response_model=MCPResponse, tags=["MCP"])
         async def execute_mcp(command: MCPCommand) -> MCPResponse:
@@ -351,26 +349,47 @@ class WaygateServer:
 
         @app.get("/mcp/status", tags=["MCP"])
         async def mcp_status() -> Dict[str, Any]:
-            """Get MCP engine status"""
+            """Report the live registry and current integration state."""
+            manager = await get_mcp_manager()
+            status = await manager.get_mcp_status()
+            loader = manager.plugin_loader
             return {
-                "engine": "operational",
-                "plugins_loaded": 0,
-                "commands_available": ["test", "echo", "status"],
+                "engine": (
+                    "degraded"
+                    if status["integration_status"] in {"inactive", "degraded"}
+                    else "operational"
+                ),
+                "plugins_loaded": len(loader.loaded_plugins) if loader else 0,
+                "commands_available": sorted(
+                    tool["name"] for tool in get_available_tools()
+                ),
                 "protocol_version": "1.0",
+                "integration": status,
             }
 
         @app.get("/plugins", tags=["Plugins"])
         async def list_plugins() -> Dict[str, Any]:
-            """List loaded plugins"""
-            # TODO: Implement plugin registry
-            return {"plugins": [], "total": 0}
+            """List actual registered plugins, preserving failed catalog visibility."""
+            manager = await get_mcp_manager()
+            if manager.plugin_loader is None:
+                raise HTTPException(503, "Plugin registry is unavailable")
+            status = await manager.plugin_loader.get_plugin_status()
+            return {**status, "total": status["plugins_loaded"]}
 
         @app.post("/plugins/reload", tags=["Plugins"])
-        async def reload_plugins() -> Dict[str, Any]:
-            """Reload all plugins"""
-            self.logger.info("reloading_plugins")
-            # TODO: Implement plugin reloading
-            return {"status": "plugins_reloaded", "count": 0}
+        async def reload_plugins(response: Response) -> Dict[str, Any]:
+            """Reload registered plugins and report partial failures explicitly."""
+            manager = await get_mcp_manager()
+            try:
+                result = await manager.reload_plugins()
+            except Exception:
+                raise HTTPException(503, "Plugin reload failed") from None
+            if result["failed"]:
+                response.status_code = 503
+            return {
+                "status": "reload_failed" if result["failed"] else "plugins_reloaded",
+                **result,
+            }
 
         # MCP Integration Endpoints
         @app.get("/mcp/servers", tags=["MCP"])
@@ -529,6 +548,29 @@ class WaygateServer:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
+    async def _dependency_checks(self) -> Dict[str, str]:
+        """Probe the configured database and observe required provider readiness."""
+        checks = {}
+        try:
+            rows = await asyncio.wait_for(
+                db_manager.execute_query("SELECT COUNT(*) AS count FROM config"),
+                timeout=5,
+            )
+            checks["database"] = "ok" if rows else "failed"
+        except Exception:
+            # Health responses must not disclose connection strings or credentials.
+            checks["database"] = "failed"
+        providers = mcp_integration_manager.provider_readiness()
+        checks["providers"] = (
+            "disabled"
+            if not providers
+            else (
+                "ok" if all(state == "ok" for state in providers.values()) else "failed"
+            )
+        )
+        checks.update({f"provider:{name}": state for name, state in providers.items()})
+        return checks
+
     async def start(self) -> None:
         """Start the server"""
         self.logger.info(
@@ -575,7 +617,9 @@ class WaygateServer:
 
 
 @click.command()
-@click.option("--host", default="0.0.0.0", help="Host to bind to")
+@click.option(
+    "--host", default="127.0.0.1", envvar="WAYGATE_HOST", help="Host to bind to"
+)
 @click.option("--port", default=8000, type=int, help="Port to bind to")
 @click.option("--reload", is_flag=True, help="Enable auto-reload")
 @click.option("--workers", default=1, type=int, help="Number of workers")

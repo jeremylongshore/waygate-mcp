@@ -46,6 +46,7 @@ services:
       - WAYGATE_ENV=${WAYGATE_ENV:-production}
       - WAYGATE_LOG_LEVEL=${WAYGATE_LOG_LEVEL:-INFO}
       - WAYGATE_HOST=0.0.0.0
+      - WAYGATE_SCRATCH_DIR=/app/tmp/tools
       - WAYGATE_PORT=8000
       - WAYGATE_WORKERS=4
       # Database: Turso connection (user must provide)

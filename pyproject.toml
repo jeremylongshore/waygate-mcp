@@ -3,7 +3,7 @@
 # Generated: 2025-09-29
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=66.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -27,41 +27,18 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
 ]
 
-dependencies = [
-    "libsql-client>=0.3.1",
-    "python-dotenv>=1.0.0",
-    "flask>=2.3.0",
-    "requests>=2.31.0",
-    "json5>=0.9.0",
-    "fastapi>=0.100.0",
-    "uvicorn>=0.23.0",
-    "aiohttp>=3.8.0",
-    "pandas>=2.0.0",
-    "matplotlib>=3.7.0",
-    "seaborn>=0.12.0",
-]
+dynamic = ["dependencies", "optional-dependencies"]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.7.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
-    "bandit[toml]>=1.7.5",
-    "safety>=2.3.5",
-    "pip-audit>=2.6.1",
-    "semgrep>=1.38.0",
-]
+[tool.setuptools.dynamic]
+dependencies = {file = ["source/requirements.in", "requirements-extra.in"]}
 
-security = [
-    "bandit[toml]>=1.7.5",
-    "safety>=2.3.5",
-    "pip-audit>=2.6.1",
-    "semgrep>=1.38.0",
-]
+[tool.setuptools.dynamic.optional-dependencies]
+dev = {file = ["source/requirements-dev.in", "source/requirements-security.in"]}
+security = {file = ["source/requirements-security.in"]}
+
+[tool.setuptools.packages.find]
+include = ["source", "source.*"]
+exclude = ["source.tests", "source.tests.*"]
 
 [project.urls]
 Homepage = "https://github.com/jeremylongshore/waygate-mcp"

@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 import aiohttp
 
 from .exceptions import MCPToolError
+from .scratch import ScratchDirectory
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -46,11 +47,12 @@ class MCPToolsHandler:
 
     def __init__(self, base_path: str = "/home/jeremy") -> None:
         self.base_path = Path(base_path)
+        self._scratch = ScratchDirectory()
+        self.scratch_path = self._scratch.path
         self.allowed_paths = [
             self.base_path / "waygate-mcp",
             self.base_path / "projects",
-            Path("/tmp"),
-            Path("/var/tmp"),
+            self.scratch_path,
         ]
 
     def _validate_path(self, path_str: str) -> Path:
