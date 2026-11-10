@@ -1,0 +1,3 @@
+# Complete documented installation, including legacy analytics packages.
+-r source/requirements.in
+-r requirements-extra.in

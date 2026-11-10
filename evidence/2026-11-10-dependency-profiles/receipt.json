@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-10",
+  "base_commit": "68ee3913cdad89b16cf0001190f2f862fd2ca0ac",
+  "compiler": "uv 0.9.8",
+  "profile_sha256": {
+    "requirements.txt": "01921581c963c755be8173528cf12322166a8cfb6e37afe3f4f109bce6474842",
+    "source/requirements.txt": "d9358f22a228e4b34706aec8ad7d11243233c63bb2a7b731e0ead7658ced9945",
+    "source/requirements-docker.txt": "2b14405c22fd29f534ac68cd2276b3528e3a72da587ebc5014f4965523087938",
+    "source/requirements-dev.txt": "989d57b68e1ff551b730b2a15252eec898d549adab3d862d953db3780e362faf"
+  },
+  "recompilation": "byte-for-byte unchanged",
+  "tests": {
+    "python3.11": 233,
+    "python3.12": 233,
+    "branch_coverage_percent": 81.55,
+    "security_contracts": 20,
+    "release_report_contracts": 26,
+    "benchmarks": 2
+  },
+  "image": "sha256:306176a9259840f762718fda2c8bb4f2e06b4d2b7a0289a5f0d859802fa65447",
+  "trivy": {
+    "image_digest": "sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb",
+    "critical_findings": 0,
+    "secret_findings": 0
+  },
+  "full_repository": {
+    "supported_inputs": 14,
+    "osv_finding_records": 733,
+    "osv_blocking_records": 406,
+    "gitleaks_historical_findings": 13,
+    "sast_findings": 0,
+    "result": "FAIL"
+  },
+  "profile_osv": {
+    "standard": {
+      "version": "2.5.1",
+      "exit_code": 0,
+      "results": []
+    },
+    "docker": {
+      "version": "2.5.1",
+      "exit_code": 0,
+      "results": []
+    },
+    "development": {
+      "version": "2.5.1",
+      "exit_code": 0,
+      "results": []
+    },
+    "root": {
+      "version": "2.5.1",
+      "exit_code": 0,
+      "results": []
+    }
+  }
+}

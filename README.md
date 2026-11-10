@@ -65,11 +65,15 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 
 # Install dependencies
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 
 # Start full MCP server with all tools
 python -m source.waygate_mcp --port 8000 --env production
 ```
+
+This install file includes the complete server dependency graph and the retained
+analytics packages. See [dependency profiles](ci/dependencies/README.md) for the
+standard, container and development locks and their regeneration procedure.
 
 ### 2. Verify Complete Functionality
 ```bash
